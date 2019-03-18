@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lc-chatbot-agent
+spec:
+  template:
+    spec:
+      containers:
+        - name: lc-chatbot-agent
+          image: artifactory.devops.maaii.com/lc-docker-local/lc-chatbot-agent:latest
+          ports:
+            - name: api-port
+              containerPort: 8999
+              protocol: TCP
+            - name: profile-api
+              containerPort: 10201
+              protocol: TCP
+          env:
+            - name: HTTP_PORT
+              value: "8999"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8999
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8999
+            periodSeconds: 5
