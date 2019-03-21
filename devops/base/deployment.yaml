@@ -18,6 +18,56 @@ spec:
           env:
             - name: HTTP_PORT
               value: "8999"
+            - name: HTTP_READ_TIMEOUT
+              value: "40s"
+            - name: HTTP_WRITE_TIMEOUT
+              value: "40s"
+            - name: HTTP_CLIENT_TIMEOUT
+              value: "15s"
+            - name: HTTP_MODE
+              value: "debug"
+            - name: LOG_OUTPUT
+              value: "Stdout"
+            - name: LOG_LEVEL
+              value: "debug"
+            - name: LOG_TIMESTAMP_FORMAT
+              value: ""
+            - name: LOG_ACCESS_LEVEL
+              value: "trace"
+            - name: JAEGER_ENABLED
+              value: "true"
+            - name: JAEGER_HOST
+              value: "127.0.0.1:6831"
+            - name: JAEGER_SAMPLE_RATE
+              value: "1"
+            - name: JAEGER_QUEUE_SIZE
+              value: "128"
+            - name: JAEGER_FLUSH_INTERVAL
+              value: "10s"
+            - name: JAEGER_LOG_SPANS
+              value: "false"
+            - name: DATABASE_MGO_NAME
+              value: "mongo1"
+            - name: DATABASE_MGO_USER
+              value: "maaii"
+            - name: DATABASE_MGO_PASSWORD
+              value: "@maaii"
+            - name: DATABASE_MGO_AUTHDATABASE
+              value: "admin"
+            - name: DATABASE_MGO_MAX_CONN
+              value: "4"
+            - name: DATABASE_MGO_MAX_IDLE
+              value: "15"
+            - name: DATABASE_MGO_TIMEOUT
+              value: "30s"
+            - name: DATABASE_MGO_DIRECT
+              value: "true"
+            - name: DATABASE_MGO_SECONDARY
+              value: "false"
+            - name: DATABASE_MGO_MONGOS
+              value: "false"
+            - name: DATABASE_MGO_HOSTS
+              value: "192.168.118.173:27017"
           livenessProbe:
             httpGet:
               path: /health

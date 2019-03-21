@@ -34,7 +34,7 @@ var systemCtx goctx.Context
 func init() {
 	flag.BoolVar(&opts.version, "build", false, "GoLang build version.")
 	flag.BoolVar(&opts.prof, "prof", false, "GoLang profiling function.")
-	flag.StringVar(&opts.configFile, "config", "./conf.d/current.toml", "Path to Config File")
+	flag.StringVar(&opts.configFile, "config", "./local.toml", "Path to Config File")
 
 	systemCtx = goctx.Background()
 }
@@ -54,17 +54,14 @@ func main() {
 	}
 	viper.AutomaticEnv()
 	viper.SetConfigFile(opts.configFile)
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		log.Printf("[Warn] no config file: %s", err)
-	}
+	viper.ReadInConfig() // Find and read the config file
 	log.SetFlags(log.LstdFlags)
 
 	// Init log
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
-
-	err = m800log.Initialize(viper.GetString("log.file_name"), viper.GetString("log.level"))
+	var err error
+	err = m800log.Initialize(viper.GetString("log.output"), viper.GetString("log.level"))
 	if err != nil {
 		panic(err)
 	}
@@ -111,7 +108,7 @@ func initTracer() error {
 	rConf := &jaegercfg.ReporterConfig{
 		QueueSize:           viper.GetInt("jaeger.queue_size"),
 		BufferFlushInterval: viper.GetDuration("jaeger.flush_interval"),
-		LocalAgentHostPort:  fmt.Sprintf("%s:%d", viper.GetString("jaeger.host"), viper.GetInt("jaeger.port")),
+		LocalAgentHostPort:  viper.GetString("jaeger.host"),
 		LogSpans:            viper.GetBool("jaeger.log_spans"),
 	}
 	log.Printf("Sampler Config:%+v\nReporterConfig:%+v\n", sConf, rConf)
@@ -122,31 +119,17 @@ func initTracer() error {
 }
 
 func getMongoDBInfo() *mgopool.DBInfo {
-	b := viper.GetInt("database.mgo.default.host_num")
-	var prefix, key string
-	var enabled bool
-	name := viper.GetString("database.mgo.default.name")
-	mgoMaxConn := viper.GetInt("database.mgo.default.max_conn")
-	mgoDefaultUser := viper.GetString("database.mgo.default.user")
-	mgoDefaultPassword := viper.GetString("database.mgo.default.password")
-	mgoDefaultAuthDatabase := viper.GetString("database.mgo.default.authdatabase")
-	mgoDefaultTimeout := viper.GetDuration("database.mgo.default.timeout")
-	mgoDirect := viper.GetBool("database.mgo.default.direct")
-	mgoSecondary := viper.GetBool("database.mgo.default.secondary")
-	mgoMonogs := viper.GetBool("database.mgo.default.mongos")
-	mgoAddrs := []string{}
-	for i := 0; i < b; i++ {
-		prefix = fmt.Sprintf("database.mgo.instance.%d", i)
-		key = fmt.Sprintf("%s.enabled", prefix)
-		enabled = viper.GetBool(key)
-		if enabled {
-			key = fmt.Sprintf("%s.host", prefix)
-			host := viper.GetString(key)
-			key = fmt.Sprintf("%s.port", prefix)
-			port := viper.GetString(key)
-			mgoAddrs = append(mgoAddrs, host+":"+port)
-		}
-	}
-	return mgopool.NewDBInfo(name, mgoAddrs, mgoDefaultUser, mgoDefaultPassword,
-		mgoDefaultAuthDatabase, mgoDefaultTimeout, mgoMaxConn, mgoDirect, mgoSecondary, mgoMonogs)
+	name := viper.GetString("database.mgo.name")
+	mgoMaxConn := viper.GetInt("database.mgo.max_conn")
+	mgoUser := viper.GetString("database.mgo.user")
+	mgoPassword := viper.GetString("database.mgo.password")
+	mgoAuthDatabase := viper.GetString("database.mgo.authdatabase")
+	mgoTimeout := viper.GetDuration("database.mgo.timeout")
+	mgoDirect := viper.GetBool("database.mgo.direct")
+	mgoSecondary := viper.GetBool("database.mgo.secondary")
+	mgoMonogs := viper.GetBool("database.mgo.mongos")
+	mgoAddrs := strings.Split("database.mgo.hosts", ";")
+
+	return mgopool.NewDBInfo(name, mgoAddrs, mgoUser, mgoPassword,
+		mgoAuthDatabase, mgoTimeout, mgoMaxConn, mgoDirect, mgoSecondary, mgoMonogs)
 }
