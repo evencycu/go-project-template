@@ -1,11 +1,13 @@
 APP=lc-chatbot-agent
-CONF=conf.d/local.toml
+CONF=local.toml
 PWD=$(shell pwd)
-VER=$(shell head -3 CHANGELOG.md |grep v |awk '{ print $2; }')
 PORT=$(shell head -3 conf.d/local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
 SOURCE=./...
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
 export GO111MODULE=on
+
+initrun:
+	go run ./
 
 update:
 	git pull

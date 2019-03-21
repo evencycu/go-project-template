@@ -21,3 +21,7 @@
 * tracing (gotrace, high-level wrapper of jaeger)
 * metric (gin-prometheus)
 * mongodb (mgopool, high-level wrapper of mgo)
+
+## CICD integration
+
+* make sure all the variable config in different region patch in `app-configuration`
