@@ -74,7 +74,15 @@ func main() {
 	}
 
 	// Init mongo
-	err = mgopool.Initialize(getMongoDBInfo())
+
+	// if connect to multi mongodb cluster, take this pool to use
+
+	// pool, err = mgopool.NewSessionPool(getXXXMongoDBInfo())
+	// if err != nil {
+	// 	m800log.Error(systemCtx, "mongo connect error:", err, ", config:", viper.AllSettings())
+	// }
+
+	err = mgopool.NewSessionPool(getMongoDBInfo())
 	if err != nil {
 		m800log.Error(systemCtx, "mongo connect error:", err, ", config:", viper.AllSettings())
 		panic(err)
