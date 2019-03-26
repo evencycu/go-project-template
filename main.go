@@ -82,7 +82,7 @@ func main() {
 	// 	m800log.Error(systemCtx, "mongo connect error:", err, ", config:", viper.AllSettings())
 	// }
 
-	err = mgopool.NewSessionPool(getMongoDBInfo())
+	err = mgopool.Initialize(getMongoDBInfo())
 	if err != nil {
 		m800log.Error(systemCtx, "mongo connect error:", err, ", config:", viper.AllSettings())
 		panic(err)
@@ -136,8 +136,10 @@ func getMongoDBInfo() *mgopool.DBInfo {
 	mgoDirect := viper.GetBool("database.mgo.direct")
 	mgoSecondary := viper.GetBool("database.mgo.secondary")
 	mgoMonogs := viper.GetBool("database.mgo.mongos")
-	mgoAddrs := strings.Split("database.mgo.hosts", ";")
-
+	mgoAddrs := strings.Split(viper.GetString("database.mgo.hosts"), ";")
+	if len(mgoAddrs) == 0 {
+		log.Fatal("Config error: no mongo hosts")
+	}
 	return mgopool.NewDBInfo(name, mgoAddrs, mgoUser, mgoPassword,
 		mgoAuthDatabase, mgoTimeout, mgoMaxConn, mgoDirect, mgoSecondary, mgoMonogs)
 }
