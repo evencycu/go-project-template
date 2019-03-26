@@ -42,7 +42,7 @@ func GinOKError(c *gin.Context, err gopkg.CodeError) {
 	// here, we check level first, because we have to do requestDump
 	if m800log.GetLogger().Level >= logrus.DebugLevel {
 		requestDump, _ := httputil.DumpRequest(c.Request, true)
-		m800log.Debug(GetContextFromGin(c), "Gin Request:", string(requestDump), "Erorr:", err.ErrorCode())
+		m800log.Debug(GetContextFromGin(c), "Gin Request:", string(requestDump), "Error:", err.ErrorCode())
 	}
 
 	c.AbortWithStatusJSON(http.StatusOK, response)
