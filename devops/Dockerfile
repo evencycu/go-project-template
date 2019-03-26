@@ -7,4 +7,4 @@ EXPOSE 8999
 ENV GO111MODULE=on
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go install -v -mod=vendor ./...
-CMD lc-chatbot-agent -config ./conf.d/$PHASE.toml
+CMD lc-chatbot-agent -config ./local.toml
