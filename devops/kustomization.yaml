@@ -1,0 +1,9 @@
+# These fields are required
+namePrefix: test-
+nameSuffix: -yourname
+commonLabels: 
+  testing: "true"
+
+# These field are optional
+bases:
+  - base

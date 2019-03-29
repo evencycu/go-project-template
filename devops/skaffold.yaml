@@ -1,0 +1,16 @@
+apiVersion: skaffold/v1beta7
+kind: Config
+build:
+  tagPolicy:
+    sha256: {}
+  artifacts:
+  - image: artifactory.devops.maaii.com/lc-docker-local/template
+    docker:  # 	beta describes an artifact built from a Dockerfile.
+      dockerfile: devops/Dockerfile	# 	locates the Dockerfile relative to workspace.
+      target:  # 	Dockerfile target name to build.
+      # buildArgs:  # 	arguments passed to the docker build.
+      #   key1: value1	# 
+      #   key2: value2	# 
+deploy:
+  kustomize: 
+    path: devops/
