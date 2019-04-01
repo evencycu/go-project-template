@@ -117,52 +117,52 @@ Skaffold is a command line tool that facilitates continuous development for Kube
 
 Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops directory.
 
-    ```bash
-    # Folder structure
-    .
-    └── devops
-        ├── Dockerfile
-        ├── base
-        │   ├── kustomization.yaml  # This is for formal deployment
-        │   ├── deployment.yaml
-        │   └── service.yaml
-        ├── kustomization.yaml  # This is for testing deployment
-        └── skaffold.yaml  # Use testing kustomization.yaml
-    ```
+```bash
+# Folder structure
+.
+└── devops
+	├── Dockerfile
+	├── base
+	│   ├── kustomization.yaml  # This is for formal deployment
+	│   ├── deployment.yaml
+	│   └── service.yaml
+	├── kustomization.yaml  # This is for testing deployment
+	└── skaffold.yaml  # Use testing kustomization.yaml
+```
 
-    ```yaml
-    # devops/kustomization.yaml
+```yaml
+# devops/kustomization.yaml
 
-    # These fields are required
-    namePrefix: test-
-    nameSuffix: -yourname
-    commonLabels:
-      testing: "true"
+# These fields are required
+namePrefix: test-
+nameSuffix: -yourname
+commonLabels:
+	testing: "true"
 
-    # Use formal kustomize base block to deploy
-    bases:
-      - base/  
-    ```
+# Use formal kustomize base block to deploy
+bases:
+	- base/  
+```
 
 Then create a develop-usage [skaffold.yaml](skaffold.yaml) in devops directory.
 
-    ```yaml
-    # devops/skaffold.yaml
+```yaml
+# devops/skaffold.yaml
 
-    apiVersion: skaffold/v1beta7
-    kind: Config
-    build:
-      tagPolicy:
-        sha256: {}
-      artifacts:
-      - image: artifactory.devops.maaii.com/lc-docker-local/go-project-template # Please change the project name
-        docker:
-          dockerfile: devops/Dockerfile # locates the Dockerfile relative to workspace.
-          target:
-    deploy:
-      kustomize:
-        path: devops/
-    ```
+apiVersion: skaffold/v1beta7
+kind: Config
+build:
+	tagPolicy:
+	sha256: {}
+	artifacts:
+	- image: artifactory.devops.maaii.com/lc-docker-local/go-project-template # Please change the project name
+	docker:
+		dockerfile: devops/Dockerfile # locates the Dockerfile relative to workspace.
+		target:
+deploy:
+	kustomize:
+	path: devops/
+```
 
 If we want build image, push image and deploy to K8s.
 
