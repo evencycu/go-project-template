@@ -31,7 +31,7 @@
 
 ## Build docker images
 
-  There are some tricks in ![Dockerfile](Dockerfile) and ![.dockerignore](../.dockerignore) that helps build docker images faster.
+  There are some tricks in [Dockerfile](Dockerfile) and [.dockerignore](../.dockerignore) that helps build docker images faster.
 
 * Use two-stage build in `Dockerfile`, and copy the less change files first. For example, copy the vendor directory first in Golang project. It will help to create some cached layers. (To use two-stage Dockerfile, Docker version 18.00+ is required)
 
@@ -54,7 +54,7 @@ Skaffold is a command line tool that facilitates continuous development for Kube
 
 ### Note
 
-* Create a develop-usage ![kustomization.yaml](kustomization.yaml) in devops directory.
+* Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops directory.
 
   ```yaml
   # These fields are required
