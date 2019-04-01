@@ -1,5 +1,6 @@
 APP=lc-chatbot-agent
 CONF=local.toml
+SKAFFOLD_CONF=devops/skaffold.yaml
 PWD=$(shell pwd)
 PORT=$(shell head -3 conf.d/local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
 SOURCE=./...
@@ -35,5 +36,18 @@ docker:
 	docker build -t $(APP) .
 	docker run -p $(PORT):$(PORT) $(APP):latest
 
-kustomize:
-	kustomize build devops/app-configuration/$(APP)/dev/dev-hk-01/
+skbuild:
+	@echo "Start skaffold build..."
+	skaffold build -f $(SKAFFOLD_CONF)
+
+skrun:
+	@echo "Start skaffold build..."
+	skaffold run -f $(SKAFFOLD_CONF)
+
+skdev:
+	@echo "Start skaffold build..."
+	skaffold dev -f $(SKAFFOLD_CONF) --trigger manual
+
+skdelete:
+	@echo "Start skaffold build..."
+	skaffold delete -f $(SKAFFOLD_CONF)
