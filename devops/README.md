@@ -39,11 +39,11 @@ This file describe how we develop and cooperate with DevOps progress. You can ch
 
 * Add `.dockerignore` file. Write down anything that is not related to generate a build. For example: `devops` directory, `.git` directory, markdown files, binaries and so on.
 
-### docker registry
+---
 
 We use artifactory as docker registry now. There are some steps to do:
 
-1. Add insecure private registry in local docker daemon and restart
+### Add insecure private registry in local docker daemon and restart
 
 * macOS: change in UI
 
@@ -69,7 +69,7 @@ We use artifactory as docker registry now. There are some steps to do:
   }
   ```
 
-2. Login to artifactory
+### Login to artifactory
 
 We only grant `lc-docker-local` directory permission to developers now. Please check if your docker images naming is in the right place.
 
@@ -79,7 +79,7 @@ Please login with following manner:
 ---
 
     user: lcc5
-	password: lcc5cake
+    password: lcc5cake
 
 ## Kustomize
 
@@ -121,13 +121,13 @@ Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops direct
 # Folder structure
 .
 └── devops
-	├── Dockerfile
-	├── base
-	│   ├── kustomization.yaml  # This is for formal deployment
-	│   ├── deployment.yaml
-	│   └── service.yaml
-	├── kustomization.yaml  # This is for testing deployment
-	└── skaffold.yaml  # Use testing kustomization.yaml
+    ├── Dockerfile
+    ├── base
+    │   ├── kustomization.yaml  # This is for formal deployment
+    │   ├── deployment.yaml
+    │   └── service.yaml
+    ├── kustomization.yaml  # This is for testing deployment
+    └── skaffold.yaml  # Use testing kustomization.yaml
 ```
 
 ```yaml
@@ -137,11 +137,11 @@ Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops direct
 namePrefix: test-
 nameSuffix: -yourname
 commonLabels:
-	testing: "true"
+  testing: "true"
 
 # Use formal kustomize base block to deploy
 bases:
-	- base/  
+  - base/  
 ```
 
 Then create a develop-usage [skaffold.yaml](skaffold.yaml) in devops directory.
@@ -152,16 +152,16 @@ Then create a develop-usage [skaffold.yaml](skaffold.yaml) in devops directory.
 apiVersion: skaffold/v1beta7
 kind: Config
 build:
-	tagPolicy:
-	sha256: {}
-	artifacts:
-	- image: artifactory.devops.maaii.com/lc-docker-local/go-project-template # Please change the project name
-	docker:
-		dockerfile: devops/Dockerfile # locates the Dockerfile relative to workspace.
-		target:
+  tagPolicy:
+    sha256: {}
+  artifacts:
+  - image: artifactory.devops.maaii.com/lc-docker-local/go-project-template # Please change the project name
+    docker:
+      dockerfile: devops/Dockerfile # locates the Dockerfile relative to workspace.
+      target:
 deploy:
-	kustomize:
-	path: devops/
+  kustomize:
+    path: devops/
 ```
 
 If we want build image, push image and deploy to K8s.
