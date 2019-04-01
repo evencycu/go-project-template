@@ -1,5 +1,10 @@
 resources:
-- deployment.yaml
-- service.yaml
+  - deployment.yaml
+  - service.yaml
+patches:
+  - envHttp.yaml
+  - envJaeger.yaml
+  - envLog.yaml
+  - envMongo.yaml
 commonLabels:
-  app: lc-chatbot-agent
+  app: go-project-template

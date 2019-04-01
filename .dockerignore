@@ -1,0 +1,9 @@
+.vscode
+.dockerignore
+.gitignore
+.golanci.yml
+*.md
+devops/*
+img/*
+Makefile
+go-project-template
