@@ -72,15 +72,15 @@ Skaffold is a command line tool that facilitates continuous development for Kube
 
 ## Troubleshooting
 
-1. build artifact: Error parsing reference: "golang:1.11.6-stretch as builder" is not a valid repository/tag:invalid reference format
+Q1: build artifact: Error parsing reference: "golang:1.11.6-stretch as builder" is not a valid repository/tag:invalid reference format
 
     ![sample](../img/docker_version_issue01.jpg)
 
-A: Update Docker version to `18.+` and restart docker daemon
+A1: Update Docker version to `18.+` and restart docker daemon
 
-2. build artifact: Get https://artifactory.devops.maaii.com/v2/: x509: certificate signed by unknown authority
+Q2. build artifact: Get https://artifactory.devops.maaii.com/v2/: x509: certificate signed by unknown authority
 
-A: Add artifactory.devops.maaii.com in insecure registry list in docker daemon and restart
+A2: Add artifactory.devops.maaii.com in insecure registry list in docker daemon and restart
 
 * macOS:
 
@@ -96,10 +96,10 @@ A: Add artifactory.devops.maaii.com in insecure registry list in docker daemon a
   }
   ```
 
-3. Error saving credentials: error storing credentials - err: exit status 1, out:
+Q3. Error saving credentials: error storing credentials - err: exit status 1, out:
 
-A: two possible solutions ([Reference Link](https://github.com/docker/for-mac/issues/2295)):
+A3: two possible solutions ([Reference Link](https://github.com/docker/for-mac/issues/2295)):
 
-  * Delete `/usr/local/bin/docker-credential-osxkeychain`
-  * Cancel `Securely store Docker logins in macOS keychain` checkbox
+* Delete `/usr/local/bin/docker-credential-osxkeychain`
+* Cancel `Securely store Docker logins in macOS keychain` checkbox
     ![sample](../img/cert_issue03.png)
