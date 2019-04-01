@@ -31,11 +31,12 @@
 
 ## Build docker images
 
-  There are some tricks in `Dockerfile` and `.dockerignore` that helps build docker images faster.
+  There are some tricks in ![Dockerfile](Dockerfile) and ![.dockerignore](../.dockerignore) that helps build docker images faster.
 
 * Use two-stage build in `Dockerfile`, and copy the less change files first. For example, copy the vendor directory first in Golang project. It will help to create some cached layers. (To use two-stage Dockerfile, Docker version 18.00+ is required)
 
 * Add `.dockerignore` file. Write down anything that is not related to generate a build. For example: `devops` directory, `.git` directory, markdown files, binaries and so on.
+
 
 ## Skaffold
 
@@ -53,12 +54,52 @@ Skaffold is a command line tool that facilitates continuous development for Kube
 
 ### Note
 
+* Create a develop-usage ![kustomization.yaml](kustomization.yaml) in devops directory.
+
+  ```yaml
+  # These fields are required
+  namePrefix: test-
+  nameSuffix: -yourname
+  commonLabels:
+    testing: "true"
+
+  # These field are optional
+  bases:
+    - base
+  ```
+
 * **Always** use `latest` tag to save docker registry spaces. If you need to know what commit is in current deployment, add commit information in Kubernetes `annotation`.
 
 ## Troubleshooting
 
-1. `build artifact: Error parsing reference: "golang:1.11.6-stretch as builder" is not a valid repository/tag:invalid reference format`
+1. build artifact: Error parsing reference: "golang:1.11.6-stretch as builder" is not a valid repository/tag:invalid reference format
 
     ![sample](../img/docker_version_issue01.jpg)
 
-    A: Update Docker version to `18.+` and restart docker daemon
+A: Update Docker version to `18.+` and restart docker daemon
+
+2. build artifact: Get https://artifactory.devops.maaii.com/v2/: x509: certificate signed by unknown authority
+
+A: Add artifactory.devops.maaii.com in insecure registry list in docker daemon and restart
+
+* macOS:
+
+  ![sample](../img/cert_issue02.png)
+
+* Linux: add following in `~/.docker/daemon.json`
+
+  ```json
+  {
+    "insecure-registries" : [
+      "artifactory.devops.maaii.com"
+    ]
+  }
+  ```
+
+3. Error saving credentials: error storing credentials - err: exit status 1, out:
+
+A: two possible solutions ([Reference Link](https://github.com/docker/for-mac/issues/2295)):
+
+  * Delete `/usr/local/bin/docker-credential-osxkeychain`
+  * Cancel `Securely store Docker logins in macOS keychain` checkbox
+    ![sample](../img/cert_issue03.png)
