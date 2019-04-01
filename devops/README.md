@@ -115,7 +115,7 @@ Skaffold is a command line tool that facilitates continuous development for Kube
 
 ### How to use it
 
-1. Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops directory.
+Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops directory.
 
     ```bash
     # Folder structure
@@ -144,7 +144,7 @@ Skaffold is a command line tool that facilitates continuous development for Kube
       - base/  
     ```
 
-2. Create a develop-usage [skaffold.yaml](skaffold.yaml) in devops directory.
+Then create a develop-usage [skaffold.yaml](skaffold.yaml) in devops directory.
 
     ```yaml
     # devops/skaffold.yaml
@@ -164,17 +164,17 @@ Skaffold is a command line tool that facilitates continuous development for Kube
         path: devops/
     ```
 
-3. Build image, push image and deploy to K8s.
+If we want build image, push image and deploy to K8s.
 
-       skaffold run -f devops/skaffold.yaml
+    skaffold run -f devops/skaffold.yaml
 
-4. Delete all resources we just deployed on K8s.
+And delete all resources we just deployed on K8s.
 
-       skaffold delete -f devops/skaffold.yaml
+    skaffold delete -f devops/skaffold.yaml
 
-5. Into develop mode. By using following command, skaffold will do everything as `skaffold run`. It also help to port-forward pods to local with random port, press any key to rebuild/redeploy the changes.
+We can go into develop mode by using skaffold. With following command, skaffold will do everything as `skaffold run`. It also help to port-forward pods to local with random port, and you can press any key to rebuild/redeploy the changes.
 
-       skaffold dev -f devops/skaffold.yaml --trigger manual
+    skaffold dev -f devops/skaffold.yaml --trigger manual
 
 ### Note
 
