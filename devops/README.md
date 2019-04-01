@@ -1,4 +1,6 @@
-# CICD integration
+# Golang CICD integration
+
+This file describe how we develop and cooperate with DevOps progress. You can check [Makefile](../Makefile) for all commands in this document.
 
 ## Prerequisite
 
@@ -29,7 +31,7 @@
   https://github.com/kubernetes-sigs/kustomize/releases/download/v1.0.11/kustomize_1.0.11_windows_amd64.exe
   ```
 
-## Build docker images
+## Docker
 
   There are some tricks in [Dockerfile](Dockerfile) and [.dockerignore](../.dockerignore) that helps build docker images faster.
 
@@ -37,6 +39,73 @@
 
 * Add `.dockerignore` file. Write down anything that is not related to generate a build. For example: `devops` directory, `.git` directory, markdown files, binaries and so on.
 
+### docker registry
+
+We use artifactory as docker registry now. There are some steps to do:
+
+1. Add insecure private registry in local docker daemon and restart
+
+* macOS: change in UI
+
+  ![sample](../img/cert_issue02.png)
+
+  or add json in `~/.docker/daemon.json` and restart docker daemon
+
+  ```json
+  {
+    "insecure-registries" : [
+      "artifactory.devops.maaii.com"
+    ]
+  }
+  ```
+
+* Linux: add json in `/etc/docker/daemon.json` and restart docker daemon
+
+  ```json
+  {
+    "insecure-registries" : [
+      "artifactory.devops.maaii.com"
+    ]
+  }
+  ```
+
+2. Login to artifactory
+
+We only grant `lc-docker-local` directory permission to developers now. Please check if your docker images naming is in the right place.
+
+Please login with following manner:
+
+    docker login artifactory.devops.maaii.com
+---
+
+    user: lcc5
+	password: lcc5cake
+
+## Kustomize
+
+We use [kustomize](https://github.com/kubernetes-sigs/kustomize) as our K8s yamls generator.
+
+We propose to use a tool called [kustomize](https://github.com/kubernetes-sigs/kustomize). The main difference between `kustomize` and `helm` is template, the base of helm is template while the base of kustomize is still usable resources！ This feature makes collaboration more easier. Developers don't need to understand another domain-specific language (DSL) or template system. If the base configuration could work on local Kubernetes cluster, it should work after environments patches of OP team.
+
+We can have the base layer which is maintained by developers. Possible folder structure like this:
+
+```shell
+.
+└── devops
+    ├── Dockerfile
+    └── base
+        ├── kustomization.yaml
+        ├── deployment.yaml
+        └── service.yaml
+```
+
+Then we can generate K8s resource yamls by command `kustomize build devops/base`. The generated yamls will include the deployment and service resources. You can deploy them by:
+
+    kustomize build devops/base | kubectl apply -f -
+
+and delete them by:
+
+    kustomize build devops/base | kubectl delete -f -
 
 ## Skaffold
 
@@ -46,27 +115,72 @@ Skaffold is a command line tool that facilitates continuous development for Kube
 
 ### How to use it
 
-* `skaffold run -f devops/skaffold.yaml`: Build image, push image and deploy to K8s.
+1. Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops directory.
 
-* `skaffold dev -f devops/skaffold.yaml --trigger manual`: Develop mode. Do the all steps as `skaffold run`. Also port-forward pods to local with random port, press any key to rebuild/redeploy the changes.
+    ```bash
+    # Folder structure
+    .
+    └── devops
+        ├── Dockerfile
+        ├── base
+        │   ├── kustomization.yaml  # This is for formal deployment
+        │   ├── deployment.yaml
+        │   └── service.yaml
+        ├── kustomization.yaml  # This is for testing deployment
+        └── skaffold.yaml  # Use testing kustomization.yaml
+    ```
 
-* `skaffold delete -f devops/skaffold.yaml`: Delete all resources which `skaffold run` will deploy.
+    ```yaml
+    # devops/kustomization.yaml
+
+    # These fields are required
+    namePrefix: test-
+    nameSuffix: -yourname
+    commonLabels:
+      testing: "true"
+
+    # Use formal kustomize base block to deploy
+    bases:
+      - base/  
+    ```
+
+2. Create a develop-usage [skaffold.yaml](skaffold.yaml) in devops directory.
+
+    ```yaml
+    # devops/skaffold.yaml
+
+    apiVersion: skaffold/v1beta7
+    kind: Config
+    build:
+      tagPolicy:
+        sha256: {}
+      artifacts:
+      - image: artifactory.devops.maaii.com/lc-docker-local/go-project-template # Please change the project name
+        docker:
+          dockerfile: devops/Dockerfile # locates the Dockerfile relative to workspace.
+          target:
+    deploy:
+      kustomize:
+        path: devops/
+    ```
+
+3. Build image, push image and deploy to K8s.
+
+       skaffold run -f devops/skaffold.yaml
+
+4. Delete all resources we just deployed on K8s.
+
+       skaffold delete -f devops/skaffold.yaml
+
+5. Into develop mode. By using following command, skaffold will do everything as `skaffold run`. It also help to port-forward pods to local with random port, press any key to rebuild/redeploy the changes.
+
+       skaffold dev -f devops/skaffold.yaml --trigger manual
 
 ### Note
 
-* Create a develop-usage [kustomization.yaml](kustomization.yaml) in devops directory.
+Then we can deploy your local testing service by `skaffold run -f devops/skaffold.yaml`
 
-  ```yaml
-  # These fields are required
-  namePrefix: test-
-  nameSuffix: -yourname
-  commonLabels:
-    testing: "true"
-
-  # These field are optional
-  bases:
-    - base
-  ```
+* If you want to deploy formal version of service, use `kustomize build devops/base/ | kubectl app -f -`
 
 * **Always** use `latest` tag to save docker registry spaces. If you need to know what commit is in current deployment, add commit information in Kubernetes `annotation`.
 
@@ -74,7 +188,7 @@ Skaffold is a command line tool that facilitates continuous development for Kube
 
 Q1: build artifact: Error parsing reference: "golang:1.11.6-stretch as builder" is not a valid repository/tag:invalid reference format
 
-    ![sample](../img/docker_version_issue01.jpg)
+![sample](../img/docker_version_issue01.jpg)
 
 A1: Update Docker version to `18.+` and restart docker daemon
 
@@ -82,11 +196,21 @@ Q2. build artifact: Get https://artifactory.devops.maaii.com/v2/: x509: certific
 
 A2: Add artifactory.devops.maaii.com in insecure registry list in docker daemon and restart
 
-* macOS:
+* macOS: change in UI
 
   ![sample](../img/cert_issue02.png)
 
-* Linux: add following in `~/.docker/daemon.json`
+  or add json in `~/.docker/daemon.json` and restart docker daemon
+
+  ```json
+  {
+    "insecure-registries" : [
+      "artifactory.devops.maaii.com"
+    ]
+  }
+  ```
+
+* Linux: add json in `/etc/docker/daemon.json` and restart docker daemon
 
   ```json
   {
