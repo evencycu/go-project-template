@@ -1,4 +1,4 @@
-# Golang CICD integration
+# CICD integration
 
 This file describe how we develop and cooperate with DevOps progress. You can check [Makefile](../Makefile) for all commands in this document.
 
