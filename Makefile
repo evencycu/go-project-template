@@ -13,8 +13,8 @@ TAG=NA
 endif
 BR=$(shell git rev-parse --abbrev-ref HEAD)
 
-initrun:
-	go run ./.
+run: build
+	$(GOPATH)/bin/$(APP) -config $(CONF)
 
 update:
 	git pull
@@ -26,9 +26,6 @@ test:
 	@echo "Start unit tests & vet..."
 	go vet $(SOURCE)
 	go test -race -cover $(SOURCE)
-
-run: build
-	$(GOPATH)/bin/$(APP) -config $(CONF)
 
 clean:
 	rm -rf bin pkg
