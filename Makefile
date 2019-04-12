@@ -1,20 +1,26 @@
-APP=lc-chatbot-agent
+APP=go-project-template
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
+BASEDEPLOYMENT=devops/base/deployment.yaml
 PWD=$(shell pwd)
-PORT=$(shell head -3 conf.d/local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
+PORT=$(shell head -10 local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
 SOURCE=./...
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
-export GO111MODULE=on
+REVISION=$(shell git log -1 --pretty=format:"%H")
+TAG=$(shell git tag -l --points-at HEAD)
+ifeq ($(TAG),)
+TAG=NA
+endif
+BR=$(shell git rev-parse --abbrev-ref HEAD)
 
 initrun:
-	go run ./
+	go run ./.
 
 update:
 	git pull
 
 build: 
-	go install -mod=vendor -v $(SOURCE) 
+	go install -i -v $(SOURCE) 
 
 test:
 	@echo "Start unit tests & vet..."
@@ -26,28 +32,33 @@ run: build
 
 clean:
 	rm -rf bin pkg
+	docker rmi $(shell docker images | grep none | awk '{print $$3}')
 
-vendor:
-	go build -v $(SOURCE) 
-	go mod tidy
-	go mod vendor
+modrun:
+	GO111MODULE=on go install -mod=vendor -v $(SOURCE)
+	$(GOPATH)/bin/$(APP) -config $(CONF) 
+
+modvendor:
+	GO111MODULE=on go build -v $(SOURCE) 
+	GO111MODULE=on go mod tidy
+	GO111MODULE=on go mod vendor
 
 docker:
-	docker build -t $(APP) .
+	docker build -t $(APP) -f devops/Dockerfile .
 	docker run -p $(PORT):$(PORT) $(APP):latest
 
-skbuild:
-	@echo "Start skaffold build..."
-	skaffold build -f $(SKAFFOLD_CONF)
+kustomize:
+	sed -i '5i \ \ annotations:\n\ \ \ \ revision: $(REVISION)\n\ \ \ \ branch: $(BR)\n\ \ \ \ version: $(TAG)' $(BASEDEPLOYMENT)
+	kustomize build devops/dev/ | kubectl apply -f -
+	sed -i '5,8d' $(BASEDEPLOYMENT)
+	kubectl delete po $(shell kubectl get po | grep $(APP) | awk '{print $$1}')
 
-skrun:
-	@echo "Start skaffold build..."
-	skaffold run -f $(SKAFFOLD_CONF)
-
-skdev:
-	@echo "Start skaffold build..."
+skdev:	modvendor
 	skaffold dev -f $(SKAFFOLD_CONF) --trigger manual
 
+skrun:	modvendor
+	skaffold run -f $(SKAFFOLD_CONF)
+
 skdelete:
-	@echo "Start skaffold build..."
+	@echo "Delete skaffold run..."
 	skaffold delete -f $(SKAFFOLD_CONF)

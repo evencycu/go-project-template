@@ -2,20 +2,11 @@ run:
   deadline: 5m
 
 linters:
-  disable-all: true
   enable:
-    - dupl
-    - goconst
-    - gocyclo
-    - gofmt
-    - golint
-    - govet
-    - ineffassign
     - interfacer
+    - unconvert
     - misspell
-    - structcheck
-    - unparam
-    - varcheck
+    - gocyclo
 
 linters-settings:
   dupl:
@@ -23,6 +14,6 @@ linters-settings:
   lll:   
     line-length: 170
   gocyclo:
-    min-complexity: 15
+    min-complexity: 20
   golint:
-    min-confidence: 0.85
+    min-confidence: 0.75

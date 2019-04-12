@@ -12,8 +12,8 @@ require (
 	github.com/stretchr/testify v1.2.2
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54
-	gitlab.com/general-backend/goctx v1.1.0
-	gitlab.com/general-backend/gopkg v1.0.1
+	gitlab.com/general-backend/goctx v1.2.2
+	gitlab.com/general-backend/gopkg v1.1.0
 	gitlab.com/general-backend/gotrace v1.1.1
 	gitlab.com/general-backend/m800log v1.3.1
 	gitlab.com/general-backend/mgopool v1.2.1
