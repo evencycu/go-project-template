@@ -15,7 +15,7 @@ import (
 	"gitlab.com/general-backend/gotrace"
 	"gitlab.com/general-backend/m800log"
 	"gitlab.com/general-backend/mgopool"
-	"gitlab.com/rayshih/template/apiserver"
+	"gitlab.com/rayshih/go-project-template/apiserver"
 
 	"github.com/spf13/viper"
 	jaeger "github.com/uber/jaeger-client-go"

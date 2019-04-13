@@ -1,9 +1,16 @@
 module gitlab.com/m800/go-project-template
 
 require (
+	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
+	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/gin-contrib/sse v0.0.0-20190301062529-5545eab6dad3 // indirect
 	github.com/gin-gonic/gin v1.3.0
+	github.com/gofrs/uuid v3.2.0+incompatible
+	github.com/google/go-cmp v0.2.0 // indirect
+	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/json-iterator/go v1.1.6 // indirect
+	github.com/lib/pq v1.0.0 // indirect
 	github.com/mattn/go-isatty v0.0.7 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
@@ -17,7 +24,9 @@ require (
 	gitlab.com/general-backend/gotrace v1.1.1
 	gitlab.com/general-backend/m800log v1.3.1
 	gitlab.com/general-backend/mgopool v1.2.1
-	gitlab.com/rayshih/template v0.0.0-20190329071821-f29c21864a9a
+	gitlab.com/rayshih/go-project-template v0.0.0-20190329071821-f29c21864a9a
+	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v8 v8.18.2 // indirect
 	gopkg.in/h2non/gock.v1 v1.0.14
+	gotest.tools v2.2.0+incompatible // indirect
 )

@@ -15,8 +15,17 @@ const (
 	HTTPHeaderJaegerBaggage = "jaeger-baggage"
 
 	// for http passing
-	HTTPHeaderCID = "x-correlation-id"
-	HTTPHeaderApp = "x-app"
+	HTTPHeaderCID            = "x-correlation-id"
+	HTTPHeaderEID            = "x-m800-eid"
+	HTTPHeaderClientIP       = "x-forwarded-for"
+	HTTPHeaderClientPort     = "x-forwarded-port"
+	HTTPHeaderClientPlatform = "x-m800-platform"
+	HTTPHeaderDeviceID       = "x-m800-deviceid"
+
+	HTTPHeaderUserHome    = "x-m800-usr-home"
+	HTTPHeaderServiceHome = "x-m800-svc-home"
+	HTTPHeaderUserRole    = "x-m800-usr-role"
+	HTTPHeaderUserGroup   = "x-x800-usr-group"
 
 	// for logger
 	LogKeyTrace         = "uti"
@@ -26,7 +35,18 @@ const (
 	// FROM m800 log format document: https://issuetracking.maaii.com:9443/pages/viewpage.action?pageId=65128541#Loggingformatdesign(v1.0)-Backendteam(BE)
 
 	// LogKeyCID is the cid field key
-	LogKeyCID = "cid"
+	LogKeyCID            = "cid"
+	LogKeyEID            = "eid"
+	LogKeyClientIP       = "clientIP"
+	LogKeyClientPort     = "clientPort"
+	LogKeyClientPlatform = "platform"
+	LogKeyDeviceID       = "deviceID"
+
+	LogKeyUserHome    = "usrHome"
+	LogKeyServiceHome = "svcHome"
+	LogKeyUserRole    = "usrRole"
+	LogKeyUserGroup   = "usrGroup"
+
 	// LogKeyTimestamp is the time field key
 	LogKeyTimestamp = "time"
 	// LogKeyLevel is the level field key
@@ -36,6 +56,8 @@ const (
 	LogKeyEntryType    = "entryType"
 	LogKeyURI          = "uri"
 	LogKeyMethod       = "method"
+	LogKeyCallFunc     = "xfunc"
+	LogKeyCallLine     = "xline"
 	LogKeyHTTPMethod   = "httpMethod"
 	LogKeyInstance     = "instanceID"
 	LogKeyVersion      = "vid"
@@ -81,19 +103,35 @@ var (
 
 func init() {
 	sKMap = map[string]string{
-		LogKeyTrace:         HTTPHeaderTrace,
-		LogKeyJaegerDebug:   HTTPHeaderJaegerDebug,
-		LogKeyJaegerBaggage: HTTPHeaderJaegerBaggage,
-		LogKeyCID:           HTTPHeaderCID,
-		LogKeyApp:           HTTPHeaderApp,
+		LogKeyTrace:          HTTPHeaderTrace,
+		LogKeyJaegerDebug:    HTTPHeaderJaegerDebug,
+		LogKeyJaegerBaggage:  HTTPHeaderJaegerBaggage,
+		LogKeyCID:            HTTPHeaderCID,
+		LogKeyEID:            HTTPHeaderEID,
+		LogKeyDeviceID:       HTTPHeaderDeviceID,
+		LogKeyClientPlatform: HTTPHeaderClientPlatform,
+		LogKeyClientIP:       HTTPHeaderClientIP,
+		LogKeyClientPort:     HTTPHeaderClientPort,
+		LogKeyUserHome:       HTTPHeaderUserHome,
+		LogKeyServiceHome:    HTTPHeaderServiceHome,
+		LogKeyUserRole:       HTTPHeaderUserRole,
+		LogKeyUserGroup:      HTTPHeaderUserGroup,
 	}
 
 	hKMap = map[string]string{
-		HTTPHeaderTrace:         LogKeyTrace,
-		HTTPHeaderJaegerDebug:   LogKeyJaegerDebug,
-		HTTPHeaderJaegerBaggage: LogKeyJaegerBaggage,
-		HTTPHeaderCID:           LogKeyCID,
-		HTTPHeaderApp:           LogKeyApp,
+		HTTPHeaderTrace:          LogKeyTrace,
+		HTTPHeaderJaegerDebug:    LogKeyJaegerDebug,
+		HTTPHeaderJaegerBaggage:  LogKeyJaegerBaggage,
+		HTTPHeaderCID:            LogKeyCID,
+		HTTPHeaderEID:            LogKeyEID,
+		HTTPHeaderClientIP:       LogKeyClientIP,
+		HTTPHeaderClientPort:     LogKeyClientPort,
+		HTTPHeaderDeviceID:       LogKeyDeviceID,
+		HTTPHeaderClientPlatform: LogKeyClientPlatform,
+		HTTPHeaderUserHome:       LogKeyUserHome,
+		HTTPHeaderServiceHome:    LogKeyServiceHome,
+		HTTPHeaderUserRole:       LogKeyUserRole,
+		HTTPHeaderUserGroup:      LogKeyUserGroup,
 	}
 }
 

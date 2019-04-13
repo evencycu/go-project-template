@@ -151,9 +151,9 @@ github.com/uber/jaeger-lib/metrics
 github.com/ugorji/go/codec
 # github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54
 github.com/zsais/go-gin-prometheus
-# gitlab.com/general-backend/goctx v1.1.0
+# gitlab.com/general-backend/goctx v1.2.2
 gitlab.com/general-backend/goctx
-# gitlab.com/general-backend/gopkg v1.0.1
+# gitlab.com/general-backend/gopkg v1.1.0
 gitlab.com/general-backend/gopkg
 # gitlab.com/general-backend/gotrace v1.1.1
 gitlab.com/general-backend/gotrace
@@ -161,8 +161,8 @@ gitlab.com/general-backend/gotrace
 gitlab.com/general-backend/m800log
 # gitlab.com/general-backend/mgopool v1.2.1
 gitlab.com/general-backend/mgopool
-# gitlab.com/rayshih/template v0.0.0-20190329071821-f29c21864a9a
-gitlab.com/rayshih/template/apiserver
+# gitlab.com/rayshih/go-project-template v0.0.0-20190329071821-f29c21864a9a
+gitlab.com/rayshih/go-project-template/apiserver
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20190324223953-e3b2ff56ed87
