@@ -20,7 +20,8 @@ refer to the unit test.
 ## Test Result
 
 ```sh
+go test -race -cover
 PASS
-coverage: 95.0% of statements
+coverage: 94.4% of statements
 ok      gitlab.com/general-backend/goctx 1.097s
 ```

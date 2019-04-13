@@ -53,16 +53,18 @@ func TODO() Context {
 }
 
 func (c *MapContext) Set(key string, value interface{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.Context = context.WithValue(c.Context, mapContextKey(key), value)
 	if c.keys == nil {
 		c.keys = make(map[string]struct{})
 	}
-	c.mu.Lock()
 	c.keys[key] = nullStruct
-	c.mu.Unlock()
 }
 
 func (c *MapContext) Get(key string) interface{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.Value(mapContextKey(key))
 }
 

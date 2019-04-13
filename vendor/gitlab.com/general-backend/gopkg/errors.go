@@ -65,6 +65,11 @@ func NewCarrierCodeError(code int, message string) CarrierCodeError {
 	return CarrierCodeError(fmt.Sprintf("%d %s", code, message))
 }
 
+// NewCodeError returns CodeError by given error code and message (only accept 7-digits error code)
+func NewCodeError(code int, message string) CodeError {
+	return NewCarrierCodeError(code, message)
+}
+
 // AsCodeError - The Error "As" Code Error but more enhanced
 type AsCodeError interface {
 	CodeError
