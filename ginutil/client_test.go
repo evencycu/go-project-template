@@ -18,7 +18,7 @@ func TestHTTPDo(t *testing.T) {
 	path := "/test"
 	gock.New(apDomain).
 		Get(path).
-		Reply(200).
+		Reply(http.StatusOK).
 		JSON(map[string]string{
 			"id": "123",
 		})
@@ -29,7 +29,7 @@ func TestHTTPDo(t *testing.T) {
 	resp, err := HTTPDo(ctx, req)
 	assert.NoError(t, err)
 	// assert.NotEmpty(t, req.Header.Get("Uber-Trace-Id"))
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestHTTPPostForm(t *testing.T) {
@@ -41,7 +41,7 @@ func TestHTTPPostForm(t *testing.T) {
 	path := "/test"
 	gock.New(apDomain).
 		Post(path).
-		Reply(200).
+		Reply(http.StatusOK).
 		JSON(map[string]string{
 			"id": "123",
 		})
@@ -49,7 +49,7 @@ func TestHTTPPostForm(t *testing.T) {
 	ctx := goctx.Background()
 	resp, err := HTTPPostForm(ctx, "http://test.com/test", nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestGetHTTPClient(t *testing.T) {

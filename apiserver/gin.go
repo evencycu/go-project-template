@@ -26,7 +26,7 @@ func InitGinServer(ctx goctx.Context, version string) *http.Server {
 	// general service for debugging
 	router.GET("/health", health)
 	router.GET("/version", func(c *gin.Context) {
-		c.JSON(200, gin.H{"version": version})
+		c.JSON(http.StatusOK, gin.H{"version": version})
 	})
 	router.GET("/config", appConfig)
 	router.GET("/mongo", mongoInfo)
@@ -60,13 +60,13 @@ func mongoInfo(c *gin.Context) {
 	status["Mode"] = mgopool.Mode()
 	status["Config"] = mgopool.ShowConfig()
 	status["LiveServers"] = mgopool.LiveServers()
-	c.JSON(200, status)
+	c.JSON(http.StatusOK, status)
 }
 
 func appConfig(c *gin.Context) {
 	settings := viper.AllSettings()
 	delete(settings, "database")
-	c.JSON(200, settings)
+	c.JSON(http.StatusOK, settings)
 }
 
 func health(c *gin.Context) {
@@ -75,14 +75,14 @@ func health(c *gin.Context) {
 		c.JSON(503, gin.H{})
 		return
 	}
-	c.JSON(200, gin.H{})
+	c.JSON(http.StatusOK, gin.H{})
 }
 
 func ready(c *gin.Context) {
 	err := mgopool.Ping(goctx.Background())
 	if err != nil {
-		c.JSON(503, gin.H{})
+		c.JSON(http.StatusServiceUnavailable, gin.H{})
 		return
 	}
-	c.JSON(200, gin.H{})
+	c.JSON(http.StatusOK, gin.H{})
 }
