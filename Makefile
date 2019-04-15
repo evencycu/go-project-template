@@ -2,6 +2,8 @@ APP=go-project-template
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
+ARTIFACTORY=artifactory.devops.maaii.com/lc-docker-local/
+DOCKERTAG=$(ARTIFACTORY)$(APP)
 PWD=$(shell pwd)
 PORT=$(shell head -10 local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
 SOURCE=./...
@@ -41,10 +43,14 @@ modvendor:
 	GO111MODULE=on go mod vendor
 
 docker:
-	docker build -t $(APP) -f devops/Dockerfile .
-	docker run -p $(PORT):$(PORT) $(APP):latest
+	docker build -t $(DOCKERTAG) -f devops/Dockerfile .
+	docker run -p $(PORT):$(PORT) $(DOCKERTAG):latest
 
-kustomize:
+dockerpush:
+	docker build -t $(DOCKERTAG) -f devops/Dockerfile .
+	docker push $(DOCKERTAG):latest
+
+kustomize:dockerpush
 	sed -i '5i \ \ annotations:\n\ \ \ \ revision: $(REVISION)\n\ \ \ \ branch: $(BR)\n\ \ \ \ version: $(TAG)' $(BASEDEPLOYMENT)
 	kustomize build devops/dev/ | kubectl apply -f -
 	sed -i '5,8d' $(BASEDEPLOYMENT)
