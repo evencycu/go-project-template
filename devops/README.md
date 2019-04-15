@@ -18,7 +18,7 @@ This file describe how we develop and cooperate with DevOps progress. You can ch
   https://storage.googleapis.com/skaffold/releases/v0.26.0/skaffold-windows-amd64.exe
   ```
 
-* Kustomize `v1.0.11`
+* Kustomize `v2.0.3`
 
   ```bash
   # Linux
