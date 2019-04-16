@@ -9,5 +9,6 @@ patchesStrategicMerge:
   - envJaeger.yaml
   - envLog.yaml
   - envMongo.yaml
+  - jaegerSidecar.yaml
 commonLabels:
   app: go-project-template
