@@ -22,10 +22,10 @@ This file describe how we develop and cooperate with DevOps progress. You can ch
 
   ```bash
   # Linux
-  https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
+  curl -Lo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64 && sudo chmod +x kustomize && sudo mv kustomize /usr/local/bin
 
   # macOS
-  https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_darwin_amd64
+  curl -Lo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_darwin_amd64 && sudo chmod +x kustomize && sudo mv kustomize /usr/local/bin
 
   # Windows
   https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_windows_amd64.exe
