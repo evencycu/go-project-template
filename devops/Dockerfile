@@ -11,10 +11,15 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -mod=vendor -ldflags="-w -s
 
 # Copy source codes and build
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -mod=vendor -ldflags="-w -s" -v ./...
+ARG GITVERSION
+ARG GITBRANCH
+ARG GITREVISION
+ENV PKGPATH=gitlab.com/rayshih/go-project-template/gpt
+RUN export BUILDDATE=$(date +"%Y-%m-%dT%H:%M:%SZ") && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -mod=vendor -ldflags="-w -s -X $PKGPATH.gitCommit=$GITREVISION -X $PKGPATH.appVersion=$GITVERSION -X $PKGPATH.buildDate=$BUILDDATE -X $PKGPATH.gitBranch=$GITBRANCH" -v ./...
 
 # For minimal image
 FROM alpine:3.9
 RUN apk --no-cache add ca-certificates
 COPY --from=builder /go/bin/go-project-template .
-ENTRYPOINT ["./go-project-template"]
+COPY local.toml .
+CMD ./go-project-template -config local.toml

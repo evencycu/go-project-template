@@ -162,8 +162,6 @@ gitlab.com/general-backend/m800log v1.3.1 h1:aHzGswNPOmcvFqvY6qcSFIAoHuYI/75AHdx
 gitlab.com/general-backend/m800log v1.3.1/go.mod h1:lLbiK4YrI0gLRcyAXVBxflR4G7kMjxqLe6AviHCciOE=
 gitlab.com/general-backend/mgopool v1.2.1 h1:9FAjd7OrNL3s/RT5EvOQDEewM+C4CZ5XZIp+dIJN058=
 gitlab.com/general-backend/mgopool v1.2.1/go.mod h1:6lT+HydMCtSQmFiP7gTAq6ZBIdwk5wVV4esS5rxEPWw=
-gitlab.com/rayshih/go-project-template v0.0.0-20190329071821-f29c21864a9a h1:pPB+fwn9RMG/K2b8Tpaw/HIpquWrjxzj4XjbJxT76kA=
-gitlab.com/rayshih/go-project-template v0.0.0-20190329071821-f29c21864a9a/go.mod h1:VDjYIPQ3ShgBVUopCuQMS92hNFqNXDNYqVjRXSOpNoc=
 go.uber.org/atomic v1.3.2 h1:2Oa65PReHzfn29GpvgsYwloV9AVFHPDk8tYxt2c2tr4=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
