@@ -1,4 +1,5 @@
 APP=go-project-template
+PKGPATH=gitlab.com/rayshih/go-project-template/gpt
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
@@ -8,12 +9,13 @@ PWD=$(shell pwd)
 PORT=$(shell head -10 local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
 SOURCE=./...
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
-REVISION=$(shell git log -1 --pretty=format:"%H")
+REVISION=$(shell git rev-list -1 HEAD)
 TAG=$(shell git tag -l --points-at HEAD)
 ifeq ($(TAG),)
-TAG=NA
+TAG=UNKNOWN
 endif
 BR=$(shell git rev-parse --abbrev-ref HEAD)
+DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 run: build
 	$(GOPATH)/bin/$(APP) -config $(CONF)
@@ -22,7 +24,7 @@ update:
 	git pull
 
 build: 
-	go install -i -v $(SOURCE) 
+	go install -i -v -ldflags "-s -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE) 
 
 test:
 	@echo "Start unit tests & vet..."
@@ -43,7 +45,7 @@ modvendor:
 	GO111MODULE=on go mod vendor
 
 docker:
-	docker build -t $(DOCKERTAG) -f devops/Dockerfile .
+	docker build --build-arg GITVERSION=$(TAG) --build-arg GITREVISION=$(REVISION) --build-arg GITBRANCH=$(BR) -t $(DOCKERTAG) -f devops/Dockerfile .
 	docker run -p $(PORT):$(PORT) $(DOCKERTAG):latest
 
 dockerpush:

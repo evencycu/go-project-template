@@ -1,4 +1,4 @@
-module gitlab.com/m800/go-project-template
+module gitlab.com/rayshih/go-project-template
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
@@ -21,10 +21,9 @@ require (
 	github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54
 	gitlab.com/general-backend/goctx v1.2.2
 	gitlab.com/general-backend/gopkg v1.1.0
-	gitlab.com/general-backend/gotrace v1.1.1
+	gitlab.com/general-backend/gotrace v1.1.4
 	gitlab.com/general-backend/m800log v1.3.1
-	gitlab.com/general-backend/mgopool v1.2.1
-	gitlab.com/rayshih/go-project-template v0.0.0-20190329071821-f29c21864a9a
+	gitlab.com/general-backend/mgopool v1.2.2
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v8 v8.18.2 // indirect
 	gopkg.in/h2non/gock.v1 v1.0.14

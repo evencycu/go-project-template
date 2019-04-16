@@ -11,9 +11,10 @@ import (
 	"gitlab.com/general-backend/goctx"
 	"gitlab.com/general-backend/m800log"
 	"gitlab.com/general-backend/mgopool"
+	"gitlab.com/rayshih/go-project-template/gpt"
 )
 
-func InitGinServer(ctx goctx.Context, version string) *http.Server {
+func InitGinServer(ctx goctx.Context) *http.Server {
 	// Create gin http server.
 	gin.SetMode(viper.GetString("http.mode"))
 	router := gin.New()
@@ -26,7 +27,7 @@ func InitGinServer(ctx goctx.Context, version string) *http.Server {
 	// general service for debugging
 	router.GET("/health", health)
 	router.GET("/version", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"version": version})
+		c.JSON(http.StatusOK, gpt.GetVersion())
 	})
 	router.GET("/config", appConfig)
 	router.GET("/mongo", mongoInfo)

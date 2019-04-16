@@ -16,6 +16,7 @@ import (
 	"gitlab.com/general-backend/m800log"
 	"gitlab.com/general-backend/mgopool"
 	"gitlab.com/rayshih/go-project-template/apiserver"
+	"gitlab.com/rayshih/go-project-template/gpt"
 
 	"github.com/spf13/viper"
 	jaeger "github.com/uber/jaeger-client-go"
@@ -65,7 +66,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), appName, version)
+	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), gpt.GetAppName(), gpt.GetVersion().Version)
 	m800log.SetAccessLevel(viper.GetString("log.access_level"))
 	// Init tracer
 	err = initTracer()
@@ -88,7 +89,7 @@ func main() {
 		panic(err)
 	}
 
-	httpServer := apiserver.InitGinServer(systemCtx, version)
+	httpServer := apiserver.InitGinServer(systemCtx)
 
 	// graceful shutdown
 	quit := make(chan os.Signal, 5)
@@ -120,7 +121,7 @@ func initTracer() error {
 		LogSpans:            viper.GetBool("jaeger.log_spans"),
 	}
 	log.Printf("Sampler Config:%+v\nReporterConfig:%+v\n", sConf, rConf)
-	if err := gotrace.InitJaeger(appName, sConf, rConf); err != nil {
+	if err := gotrace.InitJaeger(gpt.GetAppName(), sConf, rConf); err != nil {
 		return fmt.Errorf("init tracer error:%s", err.Error())
 	}
 	return nil
