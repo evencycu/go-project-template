@@ -12,7 +12,7 @@ GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
 REVISION=$(shell git rev-list -1 HEAD)
 TAG=$(shell git tag -l --points-at HEAD)
 ifeq ($(TAG),)
-TAG=UNKNOWN
+TAG=$(REVISION)
 endif
 BR=$(shell git rev-parse --abbrev-ref HEAD)
 DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
