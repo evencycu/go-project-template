@@ -44,12 +44,12 @@ modvendor:
 	GO111MODULE=on go mod tidy
 	GO111MODULE=on go mod vendor
 
-docker:
+dockerbuild:
 	docker build --build-arg GITVERSION=$(TAG) --build-arg GITREVISION=$(REVISION) --build-arg GITBRANCH=$(BR) -t $(DOCKERTAG) -f devops/Dockerfile .
+docker:dockerbuild
 	docker run -p $(PORT):$(PORT) $(DOCKERTAG):latest
 
-dockerpush:
-	docker build -t $(DOCKERTAG) -f devops/Dockerfile .
+dockerpush:dockerbuild
 	docker push $(DOCKERTAG):latest
 
 kustomize:dockerpush

@@ -73,7 +73,7 @@ func appConfig(c *gin.Context) {
 func health(c *gin.Context) {
 	err := mgopool.Ping(goctx.Background())
 	if err != nil {
-		c.JSON(503, gin.H{})
+		c.JSON(http.StatusServiceUnavailable, gin.H{})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{})
