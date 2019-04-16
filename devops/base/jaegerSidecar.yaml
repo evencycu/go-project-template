@@ -14,5 +14,7 @@ spec:
           - containerPort: 6832
             protocol: UDP
           env:
+          - name: REPORTER_TYPE
+            value: "tchannel"
           - name: REPORTER_TCHANNEL_HOST_PORT
             value: "jaeger-collector:14267"
