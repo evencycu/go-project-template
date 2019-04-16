@@ -53,7 +53,28 @@ func InitZipkin(collector zipkin.Collector, sampler zipkin.Sampler, host, compon
 	return nil
 }
 
-func ExtractSpanByTagsMap(spanName string, tags *TagsMap) opentracing.Span {
+// ExtractSpanFromContext create span from context value
+func ExtractSpanFromContext(spanName string, ctx goctx.Context) opentracing.Span {
+	var sp opentracing.Span
+
+	wireContext, err := opentracing.GlobalTracer().Extract(
+		opentracing.TextMap,
+		opentracing.TextMapCarrier(ctx.LogKeyMap()))
+	if err != nil {
+		sp = opentracing.StartSpan(spanName)
+	} else {
+		sp = opentracing.StartSpan(
+			spanName,
+			ext.RPCServerOption(wireContext))
+	}
+	for k, v := range ctx.Map() {
+		sp.SetTag(k, v)
+	}
+
+	return sp
+}
+
+func ExtractSpanFromTagsMap(spanName string, tags *TagsMap) opentracing.Span {
 	var sp opentracing.Span
 	wireContext, err := opentracing.GlobalTracer().Extract(
 		opentracing.HTTPHeaders,

@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/globalsign/mgo"
@@ -78,6 +79,8 @@ type Pool struct {
 	mode        mgo.Mode
 	c           chan *Session
 	available   bool
+	rwLock      sync.RWMutex
+	wg          sync.WaitGroup
 	liveServers []string
 }
 
@@ -178,6 +181,8 @@ func (p *Pool) Init(dbi *DBInfo) error {
 	for k, v := range addrAllocations {
 		log.Println("[mongo] mongo host: ", k, ": connnections:", v)
 	}
+	p.rwLock.Lock()
+	defer p.rwLock.Unlock()
 	p.liveServers = liveServers
 	p.c = c
 	p.config = dbi
@@ -189,17 +194,20 @@ func (p *Pool) Init(dbi *DBInfo) error {
 
 // IsAvailable returns whether Pool availalbe
 func (p *Pool) IsAvailable() bool {
+	p.rwLock.RLock()
+	defer p.rwLock.RUnlock()
 	return p.available
 }
 
 func (p *Pool) get(ctx goctx.Context) (session *Session, err gopkg.CodeError) {
-	if !p.available {
+	if !p.IsAvailable() {
 		err = ErrMongoPoolClosed
 		return
 	}
 
 	select {
 	case session = <-p.c:
+		p.wg.Add(1)
 	case <-ctx.Done():
 		err = gopkg.NewCarrierCodeError(APIFullResource, "mongo resource not enough:"+ctx.Err().Error())
 		return
@@ -234,20 +242,20 @@ func (p *Pool) Config() *DBInfo {
 
 func (p *Pool) put(session *Session) {
 	p.c <- session
+	p.wg.Done()
 }
 
 // Close gracefull shutdown conns and Pool status
 func (p *Pool) Close() {
 	// wait all session come back to pool
+	p.rwLock.Lock()
 	p.available = false
-	for i := 0; i < 5; i++ {
-		// len(p.c) should not > than p.cap, but use >= to get along with error
-		if len(p.c) >= p.cap {
-			break
-		}
-		time.Sleep(time.Duration(i) * time.Second)
-	}
-
+	p.rwLock.Unlock()
+	p.wg.Wait()
+	// since Close() is seldom called,
+	// just share the rwlock with available()
+	p.rwLock.Lock()
+	defer p.rwLock.Unlock()
 	close(p.c)
 	for s := range p.c {
 		s.s.Close()
@@ -264,6 +272,9 @@ func (p *Pool) ShowConfig() map[string]interface{} {
 	config["Timeout"] = p.config.Timeout
 	config["Direct"] = p.config.Direct
 	config["Mongos"] = p.config.Mongos
+	config["ReadMode"] = p.config.ReadMode
+	config["User"] = p.config.User
+	config["AuthDatabase"] = p.config.AuthDatabase
 	return config
 }
 
