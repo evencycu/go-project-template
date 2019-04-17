@@ -53,10 +53,20 @@ func InitZipkin(collector zipkin.Collector, sampler zipkin.Sampler, host, compon
 	return nil
 }
 
-// ExtractSpanFromContext create span from context value
-func ExtractSpanFromContext(spanName string, ctx goctx.Context) opentracing.Span {
-	var sp opentracing.Span
-
+// ExtractSpanFromContext return span from goctx.context if sp in ctx LogKeyTrace
+// create span if not, and add tags and span info from goctx
+// Example:
+// sp, isNew := gotrace.ExtractSpanFromContext("span name", ctx)
+// if isNew {
+// 	defer sp.Finish()
+// }
+func ExtractSpanFromContext(spanName string, ctx goctx.Context) (sp opentracing.Span, isNew bool) {
+	var ok bool
+	sp, ok = ctx.Get(goctx.LogKeyTrace).(opentracing.Span)
+	if ok {
+		return
+	}
+	isNew = true
 	wireContext, err := opentracing.GlobalTracer().Extract(
 		opentracing.TextMap,
 		opentracing.TextMapCarrier(ctx.LogKeyMap()))
@@ -71,7 +81,7 @@ func ExtractSpanFromContext(spanName string, ctx goctx.Context) opentracing.Span
 		sp.SetTag(k, v)
 	}
 
-	return sp
+	return
 }
 
 func ExtractSpanFromTagsMap(spanName string, tags *TagsMap) opentracing.Span {

@@ -24,9 +24,11 @@ func AccessMiddleware(timeout time.Duration, errTimeout gopkg.CodeError) gin.Han
 
 		c.Set(goctx.ContextKey, ctx)
 
-		sp := gotrace.ExtractSpanFromReq(c.HandlerName(), c.Request)
-		defer sp.Finish()
-		ctx.Set(goctx.LogKeyTrace, sp)
+		sp, isNew := gotrace.ExtractSpanFromContext(c.HandlerName(), ctx)
+		if isNew {
+			defer sp.Finish()
+			ctx.Set(goctx.LogKeyTrace, sp)
+		}
 
 		defer m800log.Access(ctx, start)
 

@@ -21,7 +21,7 @@ require (
 	github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54
 	gitlab.com/general-backend/goctx v1.2.2
 	gitlab.com/general-backend/gopkg v1.1.0
-	gitlab.com/general-backend/gotrace v1.1.5
+	gitlab.com/general-backend/gotrace v1.2.0
 	gitlab.com/general-backend/m800log v1.3.1
 	gitlab.com/general-backend/mgopool v1.2.2
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
