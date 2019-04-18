@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"strings"
+
+	"github.com/spf13/viper"
 )
 
 var (
@@ -52,4 +55,18 @@ func GetAppName() string {
 // Print prints version.
 func (v version) Print(w io.Writer) {
 	fmt.Fprintf(w, "Version: %+v\n", v)
+}
+
+func GetNamespace() string {
+	return viper.GetString("app.namespace")
+}
+
+func GetPhaseEnv() string {
+	ns := GetNamespace()
+	env := "local"
+	strs := strings.Split(ns, "-")
+	if len(strs) > 0 {
+		env = strs[0]
+	}
+	return env
 }

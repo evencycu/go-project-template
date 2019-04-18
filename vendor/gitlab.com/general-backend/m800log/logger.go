@@ -84,6 +84,9 @@ func setLevel(logger *logrus.Logger, lvl string) (err error) {
 	if err == nil {
 		logger.SetLevel(level)
 	}
+	if level <= logrus.DebugLevel {
+		logger.SetReportCaller(true)
+	}
 	return
 }
 
@@ -118,8 +121,8 @@ func SetStackTrace(enable bool) {
 }
 
 // SetM800JSONFormatter set the M800JSONformatter for the standard logger
-func SetM800JSONFormatter(timestampFormat, app, version string) {
-	stdLogger.Formatter = newM800JSONFormatter(timestampFormat, app, version)
+func SetM800JSONFormatter(timestampFormat, app, version, env, ns string) {
+	stdLogger.Formatter = newM800JSONFormatter(timestampFormat, app, version, env, ns)
 }
 
 // Error logs the error level general log
@@ -179,7 +182,6 @@ func GetGeneralEntry(ctx goctx.Context) *logrus.Entry {
 		WithField(goctx.LogKeyLogType, GeneralType)
 	if stackEnabled {
 		entry = entry.WithField(stackField, stackTrace())
-
 	}
 	return entry
 }

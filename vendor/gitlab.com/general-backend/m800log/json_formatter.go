@@ -22,14 +22,23 @@ type M800JSONFormatter struct {
 	App             string
 	Version         string
 	Host            string
+	Env             string
+	Namespace       string
 }
 
-func newM800JSONFormatter(timestampFormat, app, version string) *M800JSONFormatter {
+func newM800JSONFormatter(timestampFormat, app, version, env, ns string) *M800JSONFormatter {
 	if timestampFormat == "" {
 		timestampFormat = time.RFC3339Nano
 	}
 	host, _ := os.Hostname()
-	return &M800JSONFormatter{TimestampFormat: timestampFormat, App: app, Version: version, Host: host}
+	return &M800JSONFormatter{
+		TimestampFormat: timestampFormat,
+		App:             app,
+		Version:         version,
+		Host:            host,
+		Env:             env,
+		Namespace:       ns,
+	}
 }
 
 // Format renders a single log entry
@@ -52,6 +61,8 @@ func (f *M800JSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	data[goctx.LogKeyLevel] = entry.Level.String()
 	data[goctx.LogKeyVersion] = f.Version
 	data[goctx.LogKeyInstance] = f.Host
+	data[goctx.LogKeyNamespace] = f.Namespace
+	data[goctx.LogKeyEnv] = f.Env
 
 	serialized, err := json.Marshal(data)
 	if err != nil {

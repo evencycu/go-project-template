@@ -66,7 +66,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), gpt.GetAppName(), gpt.GetVersion().Version)
+	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), gpt.GetAppName(), gpt.GetVersion().Version, gpt.GetPhaseEnv(), gpt.GetNamespace())
 	m800log.SetAccessLevel(viper.GetString("log.access_level"))
 	// Init tracer
 	err = initTracer()

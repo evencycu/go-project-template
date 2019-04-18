@@ -153,6 +153,9 @@ gitlab.com/general-backend/goctx v0.0.0-20180807094116-b717b68aec64/go.mod h1:L3
 gitlab.com/general-backend/goctx v1.1.0/go.mod h1:SLwmtHu8GBZVoBN9ueCLdK3caUntPh9/dLivsVqVJd4=
 gitlab.com/general-backend/goctx v1.2.2 h1:K0aXymIb9vcyKhlzcQ99iyuRJo9VCdkSitF7F2YCfcM=
 gitlab.com/general-backend/goctx v1.2.2/go.mod h1:SLwmtHu8GBZVoBN9ueCLdK3caUntPh9/dLivsVqVJd4=
+gitlab.com/general-backend/goctx v1.2.3/go.mod h1:SLwmtHu8GBZVoBN9ueCLdK3caUntPh9/dLivsVqVJd4=
+gitlab.com/general-backend/goctx v1.2.4 h1:SJukg5ecxH0QV8jYlhGMvfoNf2Wvp9bXmYJEqbwiVZw=
+gitlab.com/general-backend/goctx v1.2.4/go.mod h1:SLwmtHu8GBZVoBN9ueCLdK3caUntPh9/dLivsVqVJd4=
 gitlab.com/general-backend/gopkg v1.1.0 h1:vUtoOs5M898jnpTQlLTE1rdozaVLkNevvU8YAsGkCXk=
 gitlab.com/general-backend/gopkg v1.1.0/go.mod h1:X1mSYL1dwMnzVTVOfA4f3DeF38L/PqgcR+9jYe4GmG4=
 gitlab.com/general-backend/gotrace v1.1.4/go.mod h1:AqrFkkxEEZdiI9pQx+bweEPV3Q3YX2xqi/rcwTfKs0E=
@@ -160,6 +163,8 @@ gitlab.com/general-backend/gotrace v1.2.0 h1:8Q/MZAfk3Kt5oWAqOuEa11so+U3ccCGQ3HP
 gitlab.com/general-backend/gotrace v1.2.0/go.mod h1:AqrFkkxEEZdiI9pQx+bweEPV3Q3YX2xqi/rcwTfKs0E=
 gitlab.com/general-backend/m800log v1.3.1 h1:aHzGswNPOmcvFqvY6qcSFIAoHuYI/75AHdxDBThW6f0=
 gitlab.com/general-backend/m800log v1.3.1/go.mod h1:lLbiK4YrI0gLRcyAXVBxflR4G7kMjxqLe6AviHCciOE=
+gitlab.com/general-backend/m800log v1.3.2 h1:9fqFND+S3mOsP7juM4kOCpKYyiE8ji4TiPFiRS+LwLI=
+gitlab.com/general-backend/m800log v1.3.2/go.mod h1:pof47XqDbtJ3EJzjQGSOxpXWx0LTpCDF0dT5gA8isY0=
 gitlab.com/general-backend/mgopool v1.2.2 h1:6JgtE0ZuNhIwyhbipLrDB6iHfPanNF0FLkrHZA2/xRA=
 gitlab.com/general-backend/mgopool v1.2.2/go.mod h1:dT3xZjARq5wBuOAwF7Wzff3iFxT3WbbOoImT8LALcms=
 go.uber.org/atomic v1.3.2 h1:2Oa65PReHzfn29GpvgsYwloV9AVFHPDk8tYxt2c2tr4=

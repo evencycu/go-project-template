@@ -68,6 +68,12 @@ func (c *MapContext) Get(key string) interface{} {
 	return c.Value(mapContextKey(key))
 }
 
+func (c *MapContext) Done() <-chan struct{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Context.Done()
+}
+
 func (c *MapContext) GetString(key string) (value string, ok bool) {
 	v := c.Get(key)
 	if v == nil {
