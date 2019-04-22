@@ -33,6 +33,7 @@ test:
 
 clean:
 	rm -rf bin pkg
+	go clean --modcache
 	docker rmi $(shell docker images | grep none | awk '{print $$3}')
 
 modrun:
