@@ -4,6 +4,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/Microsoft/go-winio v0.4.12 // indirect
+	github.com/eaglerayp/go-gin-prometheus v0.1.0
 	github.com/gin-contrib/sse v0.0.0-20190301062529-5545eab6dad3 // indirect
 	github.com/gin-gonic/gin v1.3.0
 	github.com/gofrs/uuid v3.2.0+incompatible
@@ -18,7 +19,6 @@ require (
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.2.2
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
-	github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54
 	gitlab.com/general-backend/goctx v1.2.4
 	gitlab.com/general-backend/gopkg v1.1.0
 	gitlab.com/general-backend/gotrace v1.2.0

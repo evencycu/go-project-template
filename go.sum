@@ -32,6 +32,8 @@ github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKoh
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
 github.com/docker/go-units v0.3.3 h1:Xk8S3Xj5sLGlG5g67hJmYMmUgXv5N4PhkjJHHqrwnTk=
 github.com/docker/go-units v0.3.3/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
+github.com/eaglerayp/go-gin-prometheus v0.1.0 h1:3JqL3DH08VkYzIqRKXo35GyRDhOFP9pDhT51y29sjBg=
+github.com/eaglerayp/go-gin-prometheus v0.1.0/go.mod h1:GD5XIxw6UyMdGn8mRHKNmYYI/MHJ4kq2e0t3xq19IAo=
 github.com/eapache/go-resiliency v1.1.0 h1:1NtRmCAqadE2FN4ZcN6g90TP3uk8cg9rn9eNK2197aU=
 github.com/eapache/go-resiliency v1.1.0/go.mod h1:kFI+JgMyC7bLPUVY133qvEBtVayf5mFgVsvEsIPBvNs=
 github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 h1:YEetp8/yCZMuEPMUDHG0CW/brkkEp8mzqk2+ODEitlw=
@@ -147,8 +149,6 @@ github.com/uber/jaeger-lib v2.0.0+incompatible/go.mod h1:ComeNDZlWwrWnDv8aPp0Ba6
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8 h1:3SVOIvH7Ae1KRYyQWRjXWJEA9sS/c/pjvH++55Gr648=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54 h1:pnZSRJZsHRBoamnhJn8/mXK+H6NnHoA2sD+7xw1vi3w=
-github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54/go.mod h1:Slirjzuz8uM8Cw0jmPNqbneoqcUtY2GGjn2bEd4NRLY=
 gitlab.com/general-backend/goctx v0.0.0-20180807094116-b717b68aec64/go.mod h1:L3MQZ0LXhhcmPqooHZVcgEirrvO/zrnrqRhkzFbYE2k=
 gitlab.com/general-backend/goctx v1.1.0/go.mod h1:SLwmtHu8GBZVoBN9ueCLdK3caUntPh9/dLivsVqVJd4=
 gitlab.com/general-backend/goctx v1.2.2 h1:K0aXymIb9vcyKhlzcQ99iyuRJo9VCdkSitF7F2YCfcM=

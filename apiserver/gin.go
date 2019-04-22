@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
+	ginprometheus "github.com/eaglerayp/go-gin-prometheus"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	ginprometheus "github.com/zsais/go-gin-prometheus"
 	"gitlab.com/general-backend/goctx"
 	"gitlab.com/general-backend/m800log"
 	"gitlab.com/general-backend/mgopool"

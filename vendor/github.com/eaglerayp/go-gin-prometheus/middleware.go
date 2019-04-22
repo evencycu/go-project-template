@@ -24,7 +24,7 @@ var reqCnt = &Metric{
 	Name:        "requests_total",
 	Description: "How many HTTP requests processed, partitioned by status code and HTTP method.",
 	Type:        "counter_vec",
-	Args:        []string{"code", "method", "handler", "host", "url"}}
+	Args:        []string{"code", "method", "handler"}}
 
 var reqDur = &Metric{
 	ID:          "reqDur",
@@ -368,16 +368,7 @@ func (p *Prometheus) HandlerFunc() gin.HandlerFunc {
 		resSz := float64(c.Writer.Size())
 
 		p.reqDur.Observe(elapsed)
-		url := p.ReqCntURLLabelMappingFn(c)
-		// jlambert Oct 2018 - sidecar specific mod
-		if len(p.URLLabelFromContext) > 0 {
-			u, found := c.Get(p.URLLabelFromContext)
-			if !found {
-				u = "unknown"
-			}
-			url = u.(string)
-		}
-		p.reqCnt.WithLabelValues(status, c.Request.Method, c.HandlerName(), c.Request.Host, url).Inc()
+		p.reqCnt.WithLabelValues(status, c.Request.Method, c.HandlerName()).Inc()
 		p.reqSz.Observe(float64(reqSz))
 		p.resSz.Observe(resSz)
 	}

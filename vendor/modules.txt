@@ -8,6 +8,8 @@ github.com/apache/thrift/lib/go/thrift
 github.com/beorn7/perks/quantile
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/eaglerayp/go-gin-prometheus v0.1.0
+github.com/eaglerayp/go-gin-prometheus
 # github.com/eapache/go-resiliency v1.1.0
 github.com/eapache/go-resiliency/breaker
 # github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21
@@ -149,8 +151,6 @@ github.com/uber/jaeger-client-go/thrift-gen/baggage
 github.com/uber/jaeger-lib/metrics
 # github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8
 github.com/ugorji/go/codec
-# github.com/zsais/go-gin-prometheus v0.0.0-20181030200533-58963fb32f54
-github.com/zsais/go-gin-prometheus
 # gitlab.com/general-backend/goctx v1.2.4
 gitlab.com/general-backend/goctx
 # gitlab.com/general-backend/gopkg v1.1.0
