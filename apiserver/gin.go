@@ -8,6 +8,7 @@ import (
 	ginprometheus "github.com/eaglerayp/go-gin-prometheus"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"gitlab.com/cake/intercom"
 	"gitlab.com/general-backend/goctx"
 	"gitlab.com/general-backend/m800log"
 	"gitlab.com/general-backend/mgopool"
@@ -18,7 +19,7 @@ func InitGinServer(ctx goctx.Context) *http.Server {
 	// Create gin http server.
 	gin.SetMode(viper.GetString("http.mode"))
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(intercom.M800Recovery(gpt.CodeInternalServerError))
 
 	// Add gin prometheus metrics
 	p := ginprometheus.NewPrometheus("gin")

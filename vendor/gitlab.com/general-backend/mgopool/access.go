@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	mongoTag = "mongo.criteria"
+	TraceTagCriteria = "mongo.criteria"
+	TraceTagError    = "mongo.error"
 )
 
 const (
@@ -65,7 +66,7 @@ const (
 
 func CreateMongoSpan(ctx goctx.Context, funcName, criteria string) opentracing.Span {
 	tags := make(map[string]string)
-	tags[mongoTag] = criteria
+	tags[TraceTagCriteria] = criteria
 	sp := gotrace.CreateSpanByContext(funcName, ctx, gotrace.ReferenceChildOf, &gotrace.TagsMap{
 		Others: tags,
 	})
@@ -102,6 +103,7 @@ func (p *Pool) checkDatabaseError(err error, ctx goctx.Context, s *Session) gopk
 		go p.backgroundReconnect(s)
 		code = APIConnectDatabase
 		// special case, we won't put session right now
+		ctx.Set(goctx.LogKeyErrorCode, code)
 		return gopkg.NewCarrierCodeError(code, errorString)
 	case err == mgo.ErrNotFound || strings.HasPrefix(errorString, MongoMsgUnknown):
 		code = NotFound
@@ -133,6 +135,7 @@ func (p *Pool) checkDatabaseError(err error, ctx goctx.Context, s *Session) gopk
 		code = StringIndexTooLong
 	}
 	p.put(s)
+	ctx.Set(goctx.LogKeyErrorCode, code)
 	return gopkg.NewCarrierCodeError(code, errorString)
 }
 
@@ -169,7 +172,10 @@ func (p *Pool) CollectionCount(ctx goctx.Context, dbName, collection string) (n 
 	defer sp.Finish()
 	n, dberr := col.Count()
 	err = p.checkDatabaseError(dberr, ctx, s)
-	// accessLog(ctx, s.Addr(), METHOD_CREATE_DOC, fmt.Sprintf("Collection:%s,Stuff:%v", collection, doc), start)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
+	// accessLog(ctx, s.Addr(), METHOD_CREATE_DOC, fmt.Sprintf("Collection:%s,Stuff:%+v", collection, doc), start)
 	return
 }
 
@@ -178,11 +184,14 @@ func (p *Pool) Run(ctx goctx.Context, cmd interface{}, result interface{}) gopkg
 	if err != nil {
 		return err
 	}
-	logMsg := fmt.Sprintf("DB Operations:%v ,Result:%v", cmd, result)
+	logMsg := fmt.Sprintf("DB Operations:%+v ,Result:%+v", cmd, result)
 	sp := CreateMongoSpan(ctx, FuncRun, logMsg)
 	defer sp.Finish()
 	dberr := s.Session().Run(cmd, result)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	infoLog(ctx, s.Addr(), logMsg)
 	return err
 }
@@ -192,11 +201,14 @@ func (p *Pool) DBRun(ctx goctx.Context, dbName string, cmd, result interface{}) 
 	if err != nil {
 		return err
 	}
-	logMsg := fmt.Sprintf("DB Operations:%v ,Result:%v", cmd, result)
+	logMsg := fmt.Sprintf("DB Operations:%+v ,Result:%+v", cmd, result)
 	sp := CreateMongoSpan(ctx, FuncDBRun, logMsg)
 	defer sp.Finish()
 	dberr := s.Session().DB(dbName).Run(cmd, result)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	infoLog(ctx, s.Addr(), logMsg)
 	return err
 }
@@ -211,11 +223,14 @@ func (p *Pool) Insert(ctx goctx.Context, dbName, collection string, doc interfac
 	col := getMongoCollection(s, dbName, collection)
 
 	// Insert document to collection
-	logMsg := fmt.Sprintf("Collection:%s,Stuff:%v", collection, doc)
+	logMsg := fmt.Sprintf("Collection:%s,Stuff:%+v", collection, doc)
 	sp := CreateMongoSpan(ctx, FuncInsert, logMsg)
 	defer sp.Finish()
 	dberr := col.Insert(doc)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_CREATE_DOC, logMsg, start)
 	return err
 }
@@ -228,11 +243,14 @@ func (p *Pool) Remove(ctx goctx.Context, dbName, collection string, selector int
 
 	start := time.Now()
 	col := getMongoCollection(s, dbName, collection)
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%v", collection, selector)
+	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v", collection, selector)
 	sp := CreateMongoSpan(ctx, FuncRemove, logMsg)
 	defer sp.Finish()
 	dberr := col.Remove(selector)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_DELETE_DOC, logMsg, start)
 	return
 }
@@ -244,11 +262,14 @@ func (p *Pool) RemoveAll(ctx goctx.Context, dbName, collection string, selector 
 
 	start := time.Now()
 	col := getMongoCollection(s, dbName, collection)
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%v", collection, selector)
+	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v", collection, selector)
 	sp := CreateMongoSpan(ctx, FuncRemoveAll, logMsg)
 	defer sp.Finish()
 	info, dberr := col.RemoveAll(selector)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_DELETE_DOCS, logMsg, start)
 	return
 }
@@ -261,11 +282,14 @@ func (p *Pool) Update(ctx goctx.Context, dbName, collection string, selector int
 
 	start := time.Now()
 	col := getMongoCollection(s, dbName, collection)
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%v,Update:%v", collection, selector, update)
+	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Update:%+v", collection, selector, update)
 	sp := CreateMongoSpan(ctx, FuncUpdate, logMsg)
 	defer sp.Finish()
 	dberr := col.Update(selector, update)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_UPDATE_DOC, logMsg, start)
 	return
 }
@@ -278,12 +302,14 @@ func (p *Pool) UpdateAll(ctx goctx.Context, dbName, collection string, selector 
 
 	start := time.Now()
 	col := getMongoCollection(s, dbName, collection)
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%v,Update:%v", collection, selector, update)
+	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Update:%+v", collection, selector, update)
 	sp := CreateMongoSpan(ctx, FuncUpdateAll, logMsg)
 	defer sp.Finish()
 	info, dberr := col.UpdateAll(selector, update)
 	err = p.checkDatabaseError(dberr, ctx, s)
-
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_UPDATE_DOCS, logMsg, start)
 	return
 }
@@ -296,11 +322,14 @@ func (p *Pool) UpdateId(ctx goctx.Context, dbName, collection string, id interfa
 
 	start := time.Now()
 	col := getMongoCollection(s, dbName, collection)
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%v,Update:%v", collection, id, update)
+	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Update:%+v", collection, id, update)
 	sp := CreateMongoSpan(ctx, FuncUpdateId, logMsg)
 	defer sp.Finish()
 	dberr := col.UpdateId(id, update)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_UPDATE_DOC, logMsg, start)
 	return
 }
@@ -313,15 +342,17 @@ func (p *Pool) Upsert(ctx goctx.Context, dbName, collection string, selector int
 
 	start := time.Now()
 	col := getMongoCollection(s, dbName, collection)
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%v,Upsert:%v", collection, selector, update)
+	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Upsert:%+v", collection, selector, update)
 	sp := CreateMongoSpan(ctx, FuncUpsert, logMsg)
 	defer sp.Finish()
 	info, dberr := col.Upsert(selector, update)
 	err = p.checkDatabaseError(dberr, ctx, s)
-	if err == nil && info.UpsertedId != nil {
-		accessLog(ctx, s.Addr(), METHOD_CREATE_DOC, fmt.Sprintf("Collection:%s,Selector:%v,Stuff:%v", collection, selector, update), start)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	} else if info.UpsertedId != nil {
+		accessLog(ctx, s.Addr(), METHOD_CREATE_DOC, fmt.Sprintf("Collection:%s,Selector:%+v,Stuff:%+v", collection, selector, update), start)
 	} else {
-		accessLog(ctx, s.Addr(), METHOD_UPDATE_DOC, fmt.Sprintf("Collection:%s,Selector:%v,Stuff:%v", collection, selector, update), start)
+		accessLog(ctx, s.Addr(), METHOD_UPDATE_DOC, fmt.Sprintf("Collection:%s,Selector:%+v,Stuff:%+v", collection, selector, update), start)
 	}
 	return
 }
@@ -347,6 +378,9 @@ func (p *Pool) BulkInsert(ctx goctx.Context, dbName, collection string, document
 	defer sp.Finish()
 	_, dberr := bulk.Run()
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_BULK_INSERT, collection, start)
 	return
 }
@@ -372,6 +406,9 @@ func (p *Pool) BulkUpsert(ctx goctx.Context, dbName, collection string, selector
 	defer sp.Finish()
 	result, dberr := bulk.Run()
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_BULK_UPSERT, collection, start)
 	return
 }
@@ -397,6 +434,9 @@ func (p *Pool) BulkDelete(ctx goctx.Context, dbName, collection string, document
 	defer sp.Finish()
 	result, dberr := bulk.Run()
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_BULK_DELETE, collection, start)
 	return
 }
@@ -458,7 +498,7 @@ func (p *Pool) QueryCount(ctx goctx.Context, dbName, collection string, selector
 
 	start := time.Now()
 	query := getMongoCollection(s, dbName, collection).Find(selector)
-	logMsg := fmt.Sprintf("Collection:%s,Query:%v",
+	logMsg := fmt.Sprintf("Collection:%s,Query:%+v",
 		collection,
 		selector,
 	)
@@ -466,7 +506,9 @@ func (p *Pool) QueryCount(ctx goctx.Context, dbName, collection string, selector
 	defer sp.Finish()
 	n, dberr := query.Count()
 	err = p.checkDatabaseError(dberr, ctx, s)
-
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_READ_DOC, logMsg, start)
 	return
 }
@@ -488,7 +530,7 @@ func (p *Pool) QueryAll(ctx goctx.Context, dbName, collection string, result, se
 		query.Sort(sort...)
 	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Query:%v,Projection::%v,Sort:%v,Skip:%d,Limit:%d",
+	logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Projection::%+v,Sort:%+v,Skip:%d,Limit:%d",
 		collection,
 		selector,
 		fields,
@@ -500,6 +542,9 @@ func (p *Pool) QueryAll(ctx goctx.Context, dbName, collection string, result, se
 	defer sp.Finish()
 	dberr := query.All(result)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_READ_DOC, logMsg, start)
 	return
 }
@@ -520,7 +565,7 @@ func (p *Pool) QueryOne(ctx goctx.Context, dbName, collection string, result, se
 	if len(sort) > 0 {
 		query.Sort(sort...)
 	}
-	logMsg := fmt.Sprintf("Collection:%s,Filter:%v,Projection::%v,Sort:%v,Skip:%d,Limit:%d",
+	logMsg := fmt.Sprintf("Collection:%s,Filter:%+v,Projection::%+v,Sort:%+v,Skip:%d,Limit:%d",
 		collection,
 		selector,
 		fields,
@@ -532,6 +577,9 @@ func (p *Pool) QueryOne(ctx goctx.Context, dbName, collection string, result, se
 	defer sp.Finish()
 	dberr := query.One(result)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_READ_DOC, logMsg, start)
 	return
 }
@@ -559,7 +607,7 @@ func (p *Pool) FindAndModify(ctx goctx.Context, dbName, collection string, resul
 		ReturnNew: returnNew,
 		Upsert:    upsert,
 	}
-	logMsg := fmt.Sprintf("Collection:%s,Query:%v,Projection::%v,Sort:%v,Skip:%d,Limit:%d,Change:%v",
+	logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Projection::%+v,Sort:%+v,Skip:%d,Limit:%d,Change:%+v",
 		collection,
 		selector,
 		fields,
@@ -574,7 +622,9 @@ func (p *Pool) FindAndModify(ctx goctx.Context, dbName, collection string, resul
 	info, dberr = query.Apply(change, result)
 
 	err = p.checkDatabaseError(dberr, ctx, s)
-
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_UPDATE_DOC, logMsg, start)
 	return
 }
@@ -600,7 +650,7 @@ func (p *Pool) FindAndRemove(ctx goctx.Context, dbName, collection string, resul
 	change := mgo.Change{
 		Remove: true,
 	}
-	logMsg := fmt.Sprintf("Collection:%s,Query:%v,Projection::%v,Sort:%v,Skip:%d,Limit:%d,Change:%v",
+	logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Projection::%+v,Sort:%+v,Skip:%d,Limit:%d,Change:%+v",
 		collection,
 		selector,
 		fields,
@@ -615,7 +665,9 @@ func (p *Pool) FindAndRemove(ctx goctx.Context, dbName, collection string, resul
 	info, dberr = query.Apply(change, result)
 
 	err = p.checkDatabaseError(dberr, ctx, s)
-
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_READ_DOC, logMsg, start)
 	return
 }
@@ -646,11 +698,12 @@ func (p *Pool) CreateIndex(ctx goctx.Context, dbName, collection string, key []s
 		Unique:     unique,
 		Name:       name,
 	}
-	sp := CreateMongoSpan(ctx, FuncCreateIndex, fmt.Sprintf("Collection:%s,Create Index:%v", collection, index))
+	sp := CreateMongoSpan(ctx, FuncCreateIndex, fmt.Sprintf("Collection:%s,Create Index:%+v", collection, index))
 	defer sp.Finish()
 	dberr := getMongoCollection(s, dbName, collection).EnsureIndex(index)
 	err = p.checkDatabaseError(dberr, ctx, s)
 	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
 		errLog(ctx, s.Addr(), collection+" add index:"+strings.Join(index.Key, ",")+" err:"+err.Error())
 	}
 	return
@@ -661,11 +714,12 @@ func (p *Pool) EnsureIndex(ctx goctx.Context, dbName, collection string, index m
 	if err != nil {
 		return
 	}
-	sp := CreateMongoSpan(ctx, FuncEnsureIndex, fmt.Sprintf("Collection:%s,EnsureIndex:%v", collection, index))
+	sp := CreateMongoSpan(ctx, FuncEnsureIndex, fmt.Sprintf("Collection:%s,EnsureIndex:%+v", collection, index))
 	defer sp.Finish()
 	dberr := getMongoCollection(s, dbName, collection).EnsureIndex(index)
 	err = p.checkDatabaseError(dberr, ctx, s)
 	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
 		errLog(ctx, s.Addr(), collection+" add index:"+strings.Join(index.Key, ",")+" err:"+err.Error())
 	}
 	return
@@ -676,10 +730,13 @@ func (p *Pool) DropIndex(ctx goctx.Context, dbName, collection string, keys []st
 	if err != nil {
 		return
 	}
-	sp := CreateMongoSpan(ctx, FuncDropIndex, fmt.Sprintf("Collection:%s,DropIndex Key:%v", collection, keys))
+	sp := CreateMongoSpan(ctx, FuncDropIndex, fmt.Sprintf("Collection:%s,DropIndex Key:%+v", collection, keys))
 	defer sp.Finish()
 	dberr := getMongoCollection(s, dbName, collection).DropIndex(keys...)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	return
 }
 
@@ -692,6 +749,9 @@ func (p *Pool) DropIndexName(ctx goctx.Context, dbName, collection, name string)
 	defer sp.Finish()
 	dberr := getMongoCollection(s, dbName, collection).DropIndexName(name)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	return
 }
 
@@ -705,6 +765,9 @@ func (p *Pool) CreateCollection(ctx goctx.Context, dbName, collection string, in
 	defer sp.Finish()
 	dberr := getMongoCollection(s, dbName, collection).Create(info)
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_CREATE_COL, collection, start)
 	return
 }
@@ -719,6 +782,9 @@ func (p *Pool) DropCollection(ctx goctx.Context, dbName, collection string) (err
 	defer sp.Finish()
 	dberr := getMongoCollection(s, dbName, collection).DropCollection()
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_DROP_COL, collection, start)
 	return
 }
@@ -738,7 +804,9 @@ func (p *Pool) RenameCollection(ctx goctx.Context, dbName, oldName, newName stri
 	defer sp.Finish()
 	dberr := s.Session().Run(bson.D{{Name: "renameCollection", Value: from}, {Name: "to", Value: to}}, result)
 	err = p.checkDatabaseError(dberr, ctx, s)
-
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_RENAME_COL, logMsg, start)
 	return
 }
@@ -749,7 +817,7 @@ func (p *Pool) Pipe(ctx goctx.Context, dbName, collection string, pipeline, resu
 	if err != nil {
 		return
 	}
-	logMsg := fmt.Sprintf("Collection:%s,Pipeline:%v",
+	logMsg := fmt.Sprintf("Collection:%s,Pipeline:%+v",
 		collection,
 		pipeline,
 	)
@@ -759,6 +827,9 @@ func (p *Pool) Pipe(ctx goctx.Context, dbName, collection string, pipeline, resu
 	dberr := pipe.All(result)
 
 	err = p.checkDatabaseError(dberr, ctx, s)
+	if err != nil {
+		sp.SetTag(TraceTagError, err.FullError())
+	}
 	accessLog(ctx, s.Addr(), METHOD_READ_DOC, logMsg, start)
 	return
 }

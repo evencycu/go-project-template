@@ -17,6 +17,7 @@ const (
 	// for http passing
 	HTTPHeaderCID            = "x-correlation-id"
 	HTTPHeaderEID            = "x-m800-eid"
+	HTTPHeaderService        = "x-m800-svc"
 	HTTPHeaderClientIP       = "x-forwarded-for"
 	HTTPHeaderClientPort     = "x-forwarded-port"
 	HTTPHeaderClientPlatform = "x-m800-platform"
@@ -25,7 +26,8 @@ const (
 	HTTPHeaderUserHome    = "x-m800-usr-home"
 	HTTPHeaderServiceHome = "x-m800-svc-home"
 	HTTPHeaderUserRole    = "x-m800-usr-role"
-	HTTPHeaderUserGroup   = "x-x800-usr-group"
+	HTTPHeaderUserGroup   = "x-m800-usr-group"
+	HTTPHeaderUserAnms    = "x-m800-usr-anms"
 
 	// for logger
 	LogKeyTrace         = "uti"
@@ -37,6 +39,7 @@ const (
 	// LogKeyCID is the cid field key
 	LogKeyCID            = "cid"
 	LogKeyEID            = "eid"
+	LogKeyService        = "svc"
 	LogKeyClientIP       = "clientIP"
 	LogKeyClientPort     = "clientPort"
 	LogKeyClientPlatform = "platform"
@@ -109,6 +112,7 @@ func init() {
 		LogKeyJaegerBaggage:  HTTPHeaderJaegerBaggage,
 		LogKeyCID:            HTTPHeaderCID,
 		LogKeyEID:            HTTPHeaderEID,
+		LogKeyService:        HTTPHeaderService,
 		LogKeyDeviceID:       HTTPHeaderDeviceID,
 		LogKeyClientPlatform: HTTPHeaderClientPlatform,
 		LogKeyClientIP:       HTTPHeaderClientIP,
@@ -125,6 +129,7 @@ func init() {
 		HTTPHeaderJaegerBaggage:  LogKeyJaegerBaggage,
 		HTTPHeaderCID:            LogKeyCID,
 		HTTPHeaderEID:            LogKeyEID,
+		HTTPHeaderService:        LogKeyService,
 		HTTPHeaderClientIP:       LogKeyClientIP,
 		HTTPHeaderClientPort:     LogKeyClientPort,
 		HTTPHeaderDeviceID:       LogKeyDeviceID,

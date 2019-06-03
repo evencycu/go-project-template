@@ -12,6 +12,7 @@ import (
 type CodeError interface {
 	ErrorCode() int
 	Error() string
+	FullError() string
 }
 
 // ConstCodeError - 7 digits error code following a space and error message
@@ -26,6 +27,11 @@ func (cde ConstCodeError) ErrorCode() int {
 // Error - return predefined error message
 func (cde ConstCodeError) Error() string {
 	return string(cde)[8:]
+}
+
+// FullError - return formatted error code and error message
+func (cde ConstCodeError) FullError() string {
+	return string(cde)
 }
 
 // Wrap - [Not Implemented] Wrap error message
@@ -47,7 +53,7 @@ func (cde CarrierCodeError) SetErrorCode(code int) (CarrierCodeError, error) {
 	if code < 1000000 || code > 9999999 {
 		return cde, fmt.Errorf("error code should be 7 digits")
 	}
-	return CarrierCodeError(fmt.Sprintf("%d %s", code, cde.Error())), nil
+	return CarrierCodeError(fmt.Sprintf("%07d %s", code, cde.Error())), nil
 }
 
 // Error - return predefined error message
@@ -55,14 +61,19 @@ func (cde CarrierCodeError) Error() string {
 	return string(cde)[8:]
 }
 
+// FullError - return formatted error code and error message
+func (cde CarrierCodeError) FullError() string {
+	return string(cde)
+}
+
 // Wrap - append message to original one and return new CDE
 func (cde CarrierCodeError) Wrap(message string) CarrierCodeError {
-	return CarrierCodeError(fmt.Sprintf("%d %s", cde.ErrorCode(), cde.Error()+message))
+	return CarrierCodeError(fmt.Sprintf("%07d %s", cde.ErrorCode(), cde.Error()+message))
 }
 
 // NewCarrierCodeError returns CarrierCodeError by given error code and message
 func NewCarrierCodeError(code int, message string) CarrierCodeError {
-	return CarrierCodeError(fmt.Sprintf("%d %s", code, message))
+	return CarrierCodeError(fmt.Sprintf("%07d %s", code, message))
 }
 
 // NewCodeError returns CodeError by given error code and message (only accept 7-digits error code)

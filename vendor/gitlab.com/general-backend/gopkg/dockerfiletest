@@ -1,0 +1,5 @@
+FROM artifactory.devops.maaii.com/lc-docker-local/golang:1.11.6-kafka-sasl as builder
+
+WORKDIR /go/src/
+COPY . .
+CMD GO111MODULE=on go test -mod=vendor -v -race -cover -timeout 60s ./...
