@@ -22,7 +22,7 @@ func init() {
 	systemCtx.Set(goctx.LogKeyApp, DB_TYPE)
 }
 
-func accessLog(ctx goctx.Context, host, method, sql string, start time.Time) {
+func accessLog(ctx goctx.Context, host []string, method, sql string, start time.Time) {
 	m800log.AccessFields(ctx, start, logrus.Fields{
 		DB_HOST_FIELD:    host,
 		DB_COMMAND_FIELD: sql,
@@ -31,14 +31,21 @@ func accessLog(ctx goctx.Context, host, method, sql string, start time.Time) {
 	})
 }
 
-func errLog(ctx goctx.Context, host, msg string) {
+func errLog(ctx goctx.Context, host []string, v ...interface{}) {
 	m800log.GetGeneralEntry(ctx).
 		WithField(DB_HOST_FIELD, host).
 		WithField(DB_TYPE_FIELD, DB_TYPE).
-		Error(msg)
+		Error(v...)
 }
 
-func infoLog(ctx goctx.Context, host, msg string) {
+func errLogf(ctx goctx.Context, host []string, format string, v ...interface{}) {
+	m800log.GetGeneralEntry(ctx).
+		WithField(DB_HOST_FIELD, host).
+		WithField(DB_TYPE_FIELD, DB_TYPE).
+		Errorf(format, v...)
+}
+
+func infoLog(ctx goctx.Context, host []string, msg string) {
 	m800log.GetGeneralEntry(ctx).
 		WithField(DB_HOST_FIELD, host).
 		WithField(DB_TYPE_FIELD, DB_TYPE).

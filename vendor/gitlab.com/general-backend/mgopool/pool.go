@@ -1,10 +1,10 @@
 package mgopool
 
 import (
-	"log"
 	"math/rand"
 	"net"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +13,7 @@ import (
 	conntrack "github.com/mwitkow/go-conntrack"
 	"gitlab.com/general-backend/goctx"
 	"gitlab.com/general-backend/gopkg"
+	"gitlab.com/general-backend/m800log"
 )
 
 // AlertChannel put error message, wait for outer user (i.e., gobuster) pick and send.
@@ -58,8 +59,8 @@ func NewDBInfo(name string, addrs []string, user, password, authdbName string,
 
 // Session is wrapper for mgo.Session with logging mongos addr
 type Session struct {
-	addr string
-	s    *mgo.Session
+	addrs []string
+	s     *mgo.Session
 }
 
 // Session returns mgo.Session
@@ -68,8 +69,8 @@ func (s *Session) Session() *mgo.Session {
 }
 
 // Addr returns target mongos addr
-func (s *Session) Addr() string {
-	return s.addr
+func (s *Session) Addr() []string {
+	return s.addrs
 }
 
 // Pool is the mgo session pool
@@ -84,7 +85,7 @@ type Pool struct {
 	liveServers []string
 }
 
-func newSession(dbi *DBInfo, addr []string, mode mgo.Mode) (newSession *mgo.Session, err error) {
+func newSession(dbi *DBInfo, addrs []string, mode mgo.Mode) (newSession *mgo.Session, err error) {
 	podName, err := os.Hostname()
 	if err != nil {
 		panic("Get hostname failed")
@@ -102,7 +103,7 @@ func newSession(dbi *DBInfo, addr []string, mode mgo.Mode) (newSession *mgo.Sess
 		}
 
 	dialInfo := mgo.DialInfo{
-		Addrs:      addr,
+		Addrs:      addrs,
 		Direct:     dbi.Direct,
 		FailFast:   true,
 		Source:     dbi.AuthDatabase,
@@ -121,8 +122,7 @@ func newSession(dbi *DBInfo, addr []string, mode mgo.Mode) (newSession *mgo.Sess
 		time.Sleep(time.Duration(attempts) * time.Second)
 	}
 	if err != nil {
-		errStr := "[mongo] NewSession no reachable server"
-		errLog(systemCtx, strings.Join(addr, ","), errStr)
+		errLogf(systemCtx, addrs, "[mongo] NewSession no reachable server")
 		return
 	}
 	newSession.SetMode(mode, true)
@@ -143,17 +143,19 @@ func NewSessionPool(dbi *DBInfo) (*Pool, error) {
 
 // Init returns whether Pool availalbe
 func (p *Pool) Init(dbi *DBInfo) error {
+	m800log.Infof(systemCtx, "[mgopool] init with config: %+v", dbi)
 	c := make(chan *Session, dbi.MaxConn)
 
 	addrAllocations := make(map[string]int)
 	// get LiveServers
 	rootSession, dialErr := newSession(dbi, dbi.Addrs, mgo.Primary)
 	if dialErr != nil {
-		errLog(systemCtx, strings.Join(dbi.Addrs, ","), "unable to connect to mongoDB:"+dialErr.Error())
+		errLog(systemCtx, dbi.Addrs, "unable to connect to mongoDB:", dialErr.Error())
 		return dialErr
 	}
 	defer rootSession.Close()
 	liveServers := rootSession.LiveServers()
+	m800log.Infof(systemCtx, "[mgopool] liveservers: %s", liveServers)
 	lengthOfMongos := len(liveServers)
 	if dbi.Mongos {
 		// shuffle the server lists
@@ -165,22 +167,23 @@ func (p *Pool) Init(dbi *DBInfo) error {
 
 	sessionCount := 0
 	for i := 0; i < dbi.MaxConn; i++ {
-		addrs := liveServers
+		var addrs []string
+		sort.Strings(liveServers)
 		if dbi.Mongos {
 			addrs = []string{liveServers[i%lengthOfMongos]}
+		} else {
+			addrs = dbi.Addrs
 		}
 		newSession, err := newSession(dbi, addrs, dbi.ReadMode)
 		if err == nil {
 			addr := strings.Join(addrs, ",")
 			addrAllocations[addr] = addrAllocations[addr] + 1
-			c <- &Session{addr: addr, s: newSession}
+			c <- &Session{addrs: addrs, s: newSession}
 			sessionCount++
 		}
 	}
 
-	for k, v := range addrAllocations {
-		log.Println("[mongo] mongo host: ", k, ": connnections:", v)
-	}
+	m800log.Infof(systemCtx, "[mgopool] mongo addrAllocations: %+v", addrAllocations)
 	p.rwLock.Lock()
 	defer p.rwLock.Unlock()
 	p.liveServers = liveServers
@@ -280,11 +283,12 @@ func (p *Pool) ShowConfig() map[string]interface{} {
 
 func (p *Pool) backgroundReconnect(s *Session) error {
 	s.s.Close()
+	m800log.Info(systemCtx, "[mgopool] start reconnect")
 
 	retry := 3
 	for i := 0; i < retry; i++ {
 		// newSession timeout in 15s
-		newS, err := newSession(p.config, []string{s.addr}, p.mode)
+		newS, err := newSession(p.config, s.Addr(), p.mode)
 		if err == nil {
 			s.s = newS
 			p.put(s)
@@ -294,18 +298,16 @@ func (p *Pool) backgroundReconnect(s *Session) error {
 
 	// still cannot connet after 45 secs
 	errRetryTotalFailed := gopkg.NewError("[mongo] Reconnect failed")
-	errLog(systemCtx, s.addr, errRetryTotalFailed.Error())
+	errLog(systemCtx, s.Addr(), errRetryTotalFailed.Error())
 	p.cap--
 	if p.cap == 0 || p.cap < p.config.MaxConn/2 {
-		log.Println("start recover")
 		// should do error handling, since session drops to half of expectation
 		return p.Recover()
 	}
 	select {
 	case AlertChannel <- errRetryTotalFailed:
-		log.Println("set alert")
+		m800log.Debug(systemCtx, "[mgopool] send retry alert")
 	default:
-		log.Println("ignore alert")
 		// just pass, no spam our alert and non-blocking
 	}
 	return errRetryTotalFailed
@@ -313,7 +315,7 @@ func (p *Pool) backgroundReconnect(s *Session) error {
 
 // Recover close and re-create the pool sessions
 func (p *Pool) Recover() error {
-	log.Println("Start Pool Recover")
+	m800log.Info(systemCtx, "[mgopool] start recover")
 	p.Close()
 	return p.Init(p.config)
 }

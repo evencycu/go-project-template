@@ -84,6 +84,13 @@ func needReconnect(s string) bool {
 	return false
 }
 
+func badUpdateOperator(errorString string) bool {
+	if strings.HasPrefix(errorString, MongoMsgEmptySet) || strings.HasPrefix(errorString, MongoMsgEmptyUnset) || strings.HasPrefix(errorString, MongoMsgBadModifier) || strings.HasPrefix(errorString, MongoMsgEmptyInc) || strings.HasPrefix(errorString, MongoMsgEmptyRename) {
+		return true
+	}
+	return false
+}
+
 func getMongoCollection(s *Session, dbName, colName string) *mgo.Collection {
 	return s.Session().DB(dbName).C(colName)
 }
@@ -125,6 +132,9 @@ func (p *Pool) checkDatabaseError(err error, ctx goctx.Context, s *Session) gopk
 	case strings.HasPrefix(errorString, MongoMsgEachArray) || strings.HasPrefix(errorString, MongoMsgPullAllArray):
 		code = UpdateInputArray
 		errorString = "Add/AddUnique/Remove requires an array argument"
+	case badUpdateOperator(errorString):
+		code = BadUpdateOperatorUsage
+		errorString = "update requires an object and not empty"
 	case strings.HasPrefix(errorString, MongoMsgIncrement):
 		code = IncrementNumeric
 	case errorString == MongoMsgRegexString:

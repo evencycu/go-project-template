@@ -1,5 +1,6 @@
 APP=go-project-template
 PKGPATH=gitlab.com/rayshih/go-project-template/gpt
+GOPATH=$(shell echo $$GOPATH)
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
@@ -9,23 +10,22 @@ DOCKERTAG=$(ARTIFACTORY)$(APP)
 PWD=$(shell pwd)
 PORT=$(shell head -10 local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
 SOURCE=./...
-GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
 REVISION=$(shell git rev-list -1 HEAD)
-TAG=$(shell git tag -l --points-at HEAD)
+TAG=$(shell git tag --sort=-version:refname --points-at HEAD | head -n1)
 ifeq ($(TAG),)
 TAG=$(REVISION)
 endif
 BR=$(shell git rev-parse --abbrev-ref HEAD)
 DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+build: 
+	go install -i -v -ldflags "-s -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE) 
+
 run: build
 	$(GOPATH)/bin/$(APP) -config $(CONF)
 
 update:
 	git pull
-
-build: 
-	go install -i -v -ldflags "-s -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE) 
 
 test:
 	@echo "Start unit tests & vet..."
@@ -81,10 +81,10 @@ apib:
 	@echo "Make sure you have install snowboard"
 	snowboard lint blueprint.md
 	# snowboard html -o blueprint/blueprint.html blueprint.md
-	snowboard apib -o blueprint/blueprint.apib blueprint.md
-	sed -i 's/XVERSION/$(TAG)/g' blueprint/blueprint.apib
-	sed -i 's/XGITCOMMIT/$(REVISION)/g' blueprint/blueprint.apib
-	sed -i 's/XLASTUPDATED/$(DATE)/g' blueprint/blueprint.apib
+	snowboard apib -o blueprint/$(APP).apib blueprint.md
+	sed -i 's/XVERSION/$(TAG)/g' blueprint/$(APP).apib
+	sed -i 's/XGITCOMMIT/$(REVISION)/g' blueprint/$(APP).apib
+	sed -i 's/XLASTUPDATED/$(DATE)/g' blueprint/$(APP).apib
 
 apibrun: 
 	@echo "Make sure you have install snowboard"

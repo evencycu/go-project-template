@@ -49,7 +49,7 @@ const (
 	LogKeyServiceHome = "svcHome"
 	LogKeyUserRole    = "usrRole"
 	LogKeyUserGroup   = "usrGroup"
-
+	LogKeyUserAnms    = "usrAnms"
 	// LogKeyTimestamp is the time field key
 	LogKeyTimestamp = "time"
 	// LogKeyLevel is the level field key
@@ -121,6 +121,7 @@ func init() {
 		LogKeyServiceHome:    HTTPHeaderServiceHome,
 		LogKeyUserRole:       HTTPHeaderUserRole,
 		LogKeyUserGroup:      HTTPHeaderUserGroup,
+		LogKeyUserAnms:       HTTPHeaderUserAnms,
 	}
 
 	hKMap = map[string]string{
@@ -138,6 +139,7 @@ func init() {
 		HTTPHeaderServiceHome:    LogKeyServiceHome,
 		HTTPHeaderUserRole:       LogKeyUserRole,
 		HTTPHeaderUserGroup:      LogKeyUserGroup,
+		HTTPHeaderUserAnms:       LogKeyUserAnms,
 	}
 }
 

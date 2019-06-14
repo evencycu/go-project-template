@@ -21,15 +21,17 @@ var (
 )
 
 func init() {
+	defaultTimeout := 30 * time.Second
 	tr := &http.Transport{
 		MaxIdleConns:       10,
-		IdleConnTimeout:    30 * time.Second,
+		IdleConnTimeout:    defaultTimeout,
 		DisableCompression: true,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
 	}
-	httpClient = &http.Client{Transport: tr, Timeout: 30 * time.Second}
+
+	httpClient = &http.Client{Transport: tr, Timeout: defaultTimeout}
 }
 
 const (
@@ -122,7 +124,7 @@ func HTTPDo(ctx goctx.Context, req *http.Request) (resp *http.Response, err gopk
 
 // HTTPPostForm
 func HTTPPostForm(ctx goctx.Context, url string, data url.Values) (resp *http.Response, err gopkg.CodeError) {
-	req, err := HTTPNewRequest("POST", url, strings.NewReader(data.Encode()))
+	req, err := HTTPNewRequest(ctx, "POST", url, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -131,9 +133,10 @@ func HTTPPostForm(ctx goctx.Context, url string, data url.Values) (resp *http.Re
 	return HTTPDo(ctx, req)
 }
 
-func HTTPNewRequest(method, url string, body io.Reader) (*http.Request, gopkg.CodeError) {
+func HTTPNewRequest(ctx goctx.Context, method, url string, body io.Reader) (*http.Request, gopkg.CodeError) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
+		m800log.Error(ctx, "new http request error:", err)
 		return nil, gopkg.NewCodeError(CodeNewRequest, err.Error())
 	}
 	return req, nil

@@ -11,6 +11,7 @@ const (
 	CodeParseJSON       = 1090102
 	CodeNewRequest      = 1090103
 	CodeBadHTTPResponse = 1090104
+	CodeReadAll         = 1090105
 )
 
 var (

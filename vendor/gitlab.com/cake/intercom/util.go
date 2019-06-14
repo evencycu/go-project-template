@@ -3,7 +3,6 @@ package intercom
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -31,7 +30,7 @@ func ParseJSONReq(ctx goctx.Context, req *http.Request, v interface{}) gopkg.Cod
 	req.Body = ioutil.NopCloser(bytes.NewReader(raw))
 	err = json.Unmarshal(raw, v)
 	if err != nil {
-		m800log.Error(ctx, fmt.Sprintf("err:%v, req body: %s", err.Error(), string(raw)))
+		m800log.Errorf(ctx, "err:%v, req body: %s", err.Error(), string(raw))
 		return gopkg.NewCodeError(CodeParseJSON, err.Error())
 	}
 	return nil
@@ -39,12 +38,12 @@ func ParseJSONReq(ctx goctx.Context, req *http.Request, v interface{}) gopkg.Cod
 
 func readFromReadCloser(readCloser io.ReadCloser) ([]byte, gopkg.CodeError) {
 	if readCloser == nil {
-		return nil, gopkg.NewCodeError(CodeParseJSON, "nil readCloser")
+		return nil, gopkg.NewCodeError(CodeReadAll, "nil readCloser")
 	}
 
 	raw, err := ioutil.ReadAll(readCloser)
 	if err != nil {
-		return nil, gopkg.NewCodeError(CodeParseJSON, err.Error())
+		return nil, gopkg.NewCodeError(CodeReadAll, err.Error())
 	}
 	readCloser.Close()
 	return raw, nil
@@ -59,7 +58,7 @@ func ParseJSONReadCloser(ctx goctx.Context, readCloser io.ReadCloser, v interfac
 
 	errJSON := json.Unmarshal(raw, v)
 	if errJSON != nil {
-		m800log.Error(ctx, fmt.Sprintf("err:%v, req body: %s", errJSON.Error(), raw))
+		m800log.Errorf(ctx, "err:%v, req body: %s", errJSON.Error(), raw)
 		return gopkg.NewCodeError(CodeParseJSON, errJSON.Error())
 	}
 	return nil
@@ -69,7 +68,7 @@ func ParseJSONReadCloser(ctx goctx.Context, readCloser io.ReadCloser, v interfac
 func ParseJSON(ctx goctx.Context, data []byte, v interface{}) gopkg.CodeError {
 	err := json.Unmarshal(data, v)
 	if err != nil {
-		m800log.Error(ctx, fmt.Sprintf("err:%v, input: %s", err.Error(), string(data)))
+		m800log.Errorf(ctx, "err:%v, input: %s", err.Error(), string(data))
 		return gopkg.NewCodeError(CodeParseJSON, err.Error())
 	}
 	return nil
@@ -91,7 +90,7 @@ func dumpRequest(ctx goctx.Context, level logrus.Level, req *http.Request) {
 func dumpRequestAndBody(ctx goctx.Context, level logrus.Level, req *http.Request, body []byte) {
 	req.Header.Del(HeaderAuthorization)
 	requestDump, _ := httputil.DumpRequest(req, false)
-	m800log.Log(ctx, level, fmt.Sprintf("DumpRequest:\n%s\nBody:%s", requestDump, body))
+	m800log.Logf(ctx, level, "DumpRequest:\n%s\nBody:%s", requestDump, body)
 }
 
 // LogDumpRequest check level first, because we don't want to waste resource on DumpRequest
@@ -120,7 +119,7 @@ func LogDumpResponse(ctx goctx.Context, level logrus.Level, resp *http.Response)
 func LogDumpResponseAndBody(ctx goctx.Context, level logrus.Level, resp *http.Response, body []byte) {
 	if m800log.GetLogger().Level >= level {
 		respDump, _ := httputil.DumpResponse(resp, false)
-		m800log.Log(ctx, level, fmt.Sprintf("DumpResponse:\n%s\nBody:%s", respDump, body))
+		m800log.Logf(ctx, level, "DumpResponse:\n%s\nBody:%s", respDump, body)
 	}
 }
 

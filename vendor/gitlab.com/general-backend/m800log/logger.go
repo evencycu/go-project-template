@@ -146,7 +146,7 @@ func Info(ctx goctx.Context, v ...interface{}) {
 	}
 }
 
-// Info logs the info level general log
+// Log logs by the given level
 func Log(ctx goctx.Context, level logrus.Level, v ...interface{}) {
 	// fast return if level not enough
 	if stdLogger.Level >= level {
@@ -157,6 +157,35 @@ func Log(ctx goctx.Context, level logrus.Level, v ...interface{}) {
 // Access logs the access log with preset access level.
 func Access(ctx goctx.Context, start time.Time) {
 	GetAccessEntry(ctx, start).Log(accessLevel, AccessValue)
+}
+
+// Errorf formated the error level log with format
+func Errorf(ctx goctx.Context, format string, v ...interface{}) {
+	GetGeneralEntry(ctx).Errorf(format, v...)
+}
+
+// Debugf formated the debug level log with format
+func Debugf(ctx goctx.Context, format string, v ...interface{}) {
+	// fast return if level not enough
+	if stdLogger.Level >= logrus.DebugLevel {
+		GetGeneralEntry(ctx).Debugf(format, v...)
+	}
+}
+
+// Infof formated the info level log with format
+func Infof(ctx goctx.Context, format string, v ...interface{}) {
+	// fast return if level not enough
+	if stdLogger.Level >= logrus.InfoLevel {
+		GetGeneralEntry(ctx).Infof(format, v...)
+	}
+}
+
+// Logf formated logs by the given level with format
+func Logf(ctx goctx.Context, level logrus.Level, format string, v ...interface{}) {
+	// fast return if level not enough
+	if stdLogger.Level >= level {
+		GetGeneralEntry(ctx).Logf(level, format, v...)
+	}
 }
 
 // AccessFields logs the access log with preset access level and given fields.

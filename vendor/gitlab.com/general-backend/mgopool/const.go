@@ -8,17 +8,18 @@ const (
 	MongoPoolClosed    = 1030014
 	MongoDataNodeOp    = 1030015
 	// Data Logic Error
-	NotFound           = 1030301
-	CollectionNotFound = 1030302
-	DocumentConflict   = 1030305
-	CollectionConflict = 1030306
-	QueryInputArray    = 1030309
-	UpdateInputArray   = 1030310
-	IncrementNumeric   = 1030311
-	RegexString        = 1030312
-	DotField           = 1030313
-	Timeout            = 1030314
-	StringIndexTooLong = 1030315
+	NotFound               = 1030301
+	CollectionNotFound     = 1030302
+	DocumentConflict       = 1030305
+	CollectionConflict     = 1030306
+	QueryInputArray        = 1030309
+	UpdateInputArray       = 1030310
+	IncrementNumeric       = 1030311
+	RegexString            = 1030312
+	DotField               = 1030313
+	Timeout                = 1030314
+	StringIndexTooLong     = 1030315
+	BadUpdateOperatorUsage = 1030316
 )
 
 // Mongo Error Message
@@ -36,6 +37,11 @@ const (
 	MongoMsgArray              = "needs an array"
 	MongoMsgEachArray          = "The argument to $each"
 	MongoMsgPullAllArray       = "$pullAll requires an array argument"
+	MongoMsgEmptySet           = "'$set' is empty"
+	MongoMsgEmptyUnset         = "'$unset' is empty"
+	MongoMsgBadModifier        = "Modifiers operate on fields"
+	MongoMsgEmptyInc           = "'$inc' is empty"
+	MongoMsgEmptyRename        = "'$rename' is empty"
 	MongoMsgIncrement          = "Cannot increment with non-numeric argument"
 	MongoMsgE11000             = "E11000"
 	MongoMsgUnknown            = "Unknown"
