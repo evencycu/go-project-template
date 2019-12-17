@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"gitlab.com/general-backend/goctx"
-	"gitlab.com/general-backend/gopkg"
+	"gitlab.com/cake/goctx"
+	"gitlab.com/cake/gopkg"
 )
 
 // Response defines the JSON RESTful response
@@ -30,13 +30,14 @@ type ListResponse struct {
 }
 
 type JsonResponse struct {
-	Code    int             `json:"code"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	Message string          `json:"message,omitempty"`
-	Total   int             `json:"total"`
-	Offset  int             `json:"offset"`
-	Count   int             `json:"count"`
-	CID     string          `json:"cid,omitempty"`
+	Code       int             `json:"code"`
+	HTTPStatus int             `json:"-"`
+	Result     json.RawMessage `json:"result,omitempty"`
+	Message    string          `json:"message,omitempty"`
+	Total      int             `json:"total"`
+	Offset     int             `json:"offset"`
+	Count      int             `json:"count"`
+	CID        string          `json:"cid,omitempty"`
 }
 
 type ImmutableMap struct {
@@ -68,7 +69,8 @@ var ErrorHttpStatusMapping = &ImmutableMap{
 func GinOKResponse(c *gin.Context, result interface{}) {
 	response := Response{}
 	response.Result = result
-	c.JSON(http.StatusOK, response)
+	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
+	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
 // GinOKListResponse defines the interface of success response
@@ -78,7 +80,8 @@ func GinOKListResponse(c *gin.Context, result interface{}, total, offset, count 
 	response.Total = total
 	response.Offset = offset
 	response.Count = count
-	c.JSON(http.StatusOK, response)
+	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
+	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
 // GinAllResponse defines the interface of error response with result
@@ -88,7 +91,8 @@ func GinAllResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
 	response.Code = err.ErrorCode()
 	response.Message = err.Error()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
-	c.JSON(http.StatusOK, response)
+	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
 // GinOKError defines the interface of error response
@@ -97,10 +101,7 @@ func GinOKError(c *gin.Context, err gopkg.CodeError) {
 	response.Code = err.ErrorCode()
 	response.Message = err.Error()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
-	ctx := GetContextFromGin(c)
-	ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
-	dumpRequest(ctx, ErrorTraceLevel, c.Request)
-	c.Set(TraceTagGinError, err.FullError())
+	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
 	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
@@ -116,10 +117,22 @@ func GinError(c *gin.Context, err gopkg.CodeError) {
 		Message: err.Error(),
 		CID:     c.GetHeader(goctx.HTTPHeaderCID),
 	}
-	ctx := GetContextFromGin(c)
-	ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
-	dumpRequest(ctx, ErrorTraceLevel, c.Request)
-	c.Set(TraceTagGinError, err.FullError())
+	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	c.AbortWithStatusJSON(status, response)
+}
+
+// GinAllErrorResponse defines the interface of error response with result
+func GinAllErrorResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
+	status, ok := ErrorHttpStatusMapping.Get(err.ErrorCode())
+	if !ok {
+		status = http.StatusInternalServerError
+	}
+	response := Response{}
+	response.Result = result
+	response.Code = err.ErrorCode()
+	response.Message = err.Error()
+	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
+	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
 	c.AbortWithStatusJSON(status, response)
 }
 
@@ -135,9 +148,6 @@ func GinErrorCodeMsg(c *gin.Context, code int, msg string) {
 		Message: msg,
 		CID:     c.GetHeader(goctx.HTTPHeaderCID),
 	}
-	ctx := GetContextFromGin(c)
-	ctx.Set(goctx.LogKeyErrorCode, code)
-	dumpRequest(ctx, ErrorTraceLevel, c.Request)
-	c.Set(TraceTagGinError, msg)
+	c.Set(goctx.LogKeyErrorCode, code)
 	c.AbortWithStatusJSON(status, response)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -11,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/general-backend/goctx"
-	"gitlab.com/general-backend/gotrace"
-	"gitlab.com/general-backend/m800log"
-	"gitlab.com/general-backend/mgopool"
+	"gitlab.com/cake/goctx"
+	"gitlab.com/cake/gotrace/v2"
+	"gitlab.com/cake/m800log"
+	"gitlab.com/cake/mgopool"
 	"gitlab.com/rayshih/go-project-template/apiserver"
 	"gitlab.com/rayshih/go-project-template/gpt"
 
@@ -69,9 +70,12 @@ func main() {
 	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), gpt.GetAppName(), gpt.GetVersion().Version, gpt.GetPhaseEnv(), gpt.GetNamespace())
 	m800log.SetAccessLevel(viper.GetString("log.access_level"))
 	// Init tracer
-	err = initTracer()
+	closer, err := initTracer()
 	if err != nil {
 		panic(err)
+	}
+	if closer != nil {
+		defer closer.Close()
 	}
 
 	// Init mongo
@@ -105,10 +109,10 @@ func main() {
 	log.Println("Server exiting")
 }
 
-func initTracer() error {
+func initTracer() (io.Closer, error) {
 	if !viper.GetBool("jaeger.enabled") {
 		log.Println("Jaeger disabled")
-		return nil
+		return nil, nil
 	}
 	sConf := &jaegercfg.SamplerConfig{
 		Type:  jaeger.SamplerTypeRateLimiting,
@@ -121,10 +125,11 @@ func initTracer() error {
 		LogSpans:            viper.GetBool("jaeger.log_spans"),
 	}
 	log.Printf("Sampler Config:%+v\nReporterConfig:%+v\n", sConf, rConf)
-	if err := gotrace.InitJaeger(gpt.GetAppName(), sConf, rConf); err != nil {
-		return fmt.Errorf("init tracer error:%s", err.Error())
+	closer, err := gotrace.InitJaeger(gpt.GetAppName(), sConf, rConf)
+	if err != nil {
+		return nil, fmt.Errorf("init tracer error:%s", err.Error())
 	}
-	return nil
+	return closer, nil
 }
 
 func getMongoDBInfo() *mgopool.DBInfo {

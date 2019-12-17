@@ -2,19 +2,24 @@ package intercom
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
+	"net/http/httputil"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
-	"gitlab.com/general-backend/goctx"
-
-	"gitlab.com/general-backend/m800log"
-
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	"gitlab.com/cake/goctx"
+	"gitlab.com/cake/gopkg"
+	"gitlab.com/cake/gotrace/v2"
+	"gitlab.com/cake/m800log"
 )
 
 var (
@@ -24,6 +29,35 @@ var (
 	slash     = []byte("/")
 )
 
+const (
+	TraceTagGinError = "gin.error"
+	TraceTagNs       = "ns"
+	TraceTagForward  = "forward.host"
+	TraceTagFromNs   = "from.ns"
+
+	crossSpanName          = "cross region forward"
+	proxyScheme            = "http"
+	proxyHeaderForwardHost = "X-Forward-Host"
+	proxyHeaderOriginHost  = "X-Origin-Host"
+)
+
+type LogHideOption struct {
+	HandlerName   string
+	RequestHider  func(b []byte) []byte
+	ResponseHider func(httpStatus int, b []byte) []byte
+}
+
+type bodyLogWriter struct {
+	gin.ResponseWriter
+	body *bytes.Buffer
+}
+
+func (w bodyLogWriter) Write(b []byte) (int, error) {
+	w.body.Write(b)
+	return w.ResponseWriter.Write(b)
+}
+
+// M800Recovery does the recover for gin handler with M800 response
 func M800Recovery(panicCode int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
@@ -122,4 +156,175 @@ func function(pc uintptr) []byte {
 func timeFormat(t time.Time) string {
 	var timeString = t.Format(time.RFC3339Nano)
 	return timeString
+}
+
+// AccessMiddleware
+func AccessMiddleware(timeout time.Duration, localNamespace string, opts ...*LogHideOption) gin.HandlerFunc {
+	hiderReqMap := make(map[string]func(b []byte) []byte)
+	hiderRespMap := make(map[string]func(httpStatus int, b []byte) []byte)
+	for _, opt := range opts {
+		if opt.RequestHider != nil {
+			hiderReqMap[opt.HandlerName] = opt.RequestHider
+		}
+		if opt.ResponseHider != nil {
+			hiderRespMap[opt.HandlerName] = opt.ResponseHider
+		}
+	}
+	return func(c *gin.Context) {
+		blw := &bodyLogWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
+		c.Writer = blw
+		ctx := GetContextFromGin(c)
+		ctx.Set(goctx.LogKeyHTTPMethod, c.Request.Method)
+		ctx.Set(goctx.LogKeyURI, c.Request.URL.RequestURI())
+		// init if no cid
+		cid, _ := ctx.GetCID()
+		start := time.Now().UTC()
+		defer m800log.Access(ctx, start)
+
+		cancel := ctx.SetTimeout(timeout)
+		defer cancel()
+		handlerName := c.HandlerName()
+		sp, needFinish := gotrace.CreateSpan(ctx, handlerName)
+		if needFinish {
+			defer sp.Finish()
+		}
+		sp.SetTag(TraceTagNs, localNamespace)
+		var httpBody []byte
+		if c.Request.Body != nil {
+			var err gopkg.CodeError
+			httpBody, err = ReadFromReadCloser(c.Request.Body)
+			if err != nil {
+				GinError(c, err)
+				return
+			}
+			// support common http req usage
+			c.Request.Body = ioutil.NopCloser(bytes.NewReader(httpBody))
+			c.Set(KeyBody, httpBody)
+		}
+
+		c.Next()
+		select {
+		case <-ctx.Done():
+			// timeout case
+			m800log.Errorf(ctx, "api timeout, cid:%s", cid)
+		default:
+			// common case
+		}
+
+		if m800log.GetLogger().Level >= logrus.DebugLevel {
+			strs := strings.Split(handlerName, ".")
+			logHandlerName := strs[len(strs)-1]
+			logReqBody, logRespBody := httpBody, blw.body.Bytes()
+			if reqHider := hiderReqMap[logHandlerName]; reqHider != nil {
+				logReqBody = reqHider(logReqBody)
+			}
+			if respHider := hiderRespMap[logHandlerName]; respHider != nil {
+				logRespBody = respHider(c.Writer.Status(), logRespBody)
+			}
+			dumpRequestGivenBody(ctx, logrus.DebugLevel, c.Request, logReqBody)
+			m800log.Debugf(ctx, "API Response %d: %s", c.Writer.Status(), logRespBody)
+			return
+		}
+		if traceErrCode := c.GetInt(goctx.LogKeyErrorCode); traceErrCode != 0 {
+			sp.SetTag(TraceTagGinErrorCode, traceErrCode)
+			ctx.Set(goctx.LogKeyErrorCode, traceErrCode)
+			strs := strings.Split(handlerName, ".")
+			logHandlerName := strs[len(strs)-1]
+			logReqBody, logRespBody := httpBody, blw.body.Bytes()
+			if reqHider := hiderReqMap[logHandlerName]; reqHider != nil {
+				logReqBody = reqHider(logReqBody)
+			}
+			if respHider := hiderRespMap[logHandlerName]; respHider != nil {
+				logRespBody = respHider(c.Writer.Status(), logRespBody)
+			}
+			dumpRequestGivenBody(ctx, ErrorTraceLevel, c.Request, logReqBody)
+			m800log.Logf(ctx, ErrorTraceLevel, "API Response %d: %s", c.Writer.Status(), logRespBody)
+		}
+	}
+}
+
+func newProxy(ctx goctx.Context, forwardedHost string, timeout time.Duration, proxyErrorCode int) *httputil.ReverseProxy {
+	director := func(req *http.Request) {
+		req.Header.Add(proxyHeaderForwardHost, forwardedHost)
+		req.Header.Add(proxyHeaderOriginHost, req.Host)
+		req.URL.Scheme = proxyScheme
+		req.URL.Host = forwardedHost
+	}
+	proxy := &httputil.ReverseProxy{
+		Director: director,
+		Transport: &http.Transport{
+			ResponseHeaderTimeout: timeout,
+		},
+		ErrorHandler: func(resp http.ResponseWriter, req *http.Request, err error) {
+			if err != nil {
+				response := Response{}
+				response.Code = proxyErrorCode
+				response.Message = "cross region forward error: " + err.Error()
+				byteResp, err := json.Marshal(response)
+				if err != nil {
+					byteResp = []byte(fmt.Sprintf(`{"code":%d,"message":"cross region forward error"}`, proxyErrorCode))
+				}
+				resp.Header().Set(HeaderContentType, HeaderJSON)
+				resp.WriteHeader(http.StatusBadGateway)
+				_, errWrite := resp.Write(byteResp)
+				if errWrite != nil {
+					m800log.Info(ctx, "proxy response write error: ", errWrite)
+				}
+			}
+		},
+	}
+	return proxy
+}
+
+// CrossRegionMiddleware
+func CrossRegionMiddleware(service, servicePort, localNamespace string, timeout time.Duration, proxyErrorCode int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Edge server would carry the service home region info
+		// https://issuetracking.maaii.com:9443/display/LCC5/Edge+Server+Header+Rules
+		ns := c.GetHeader(goctx.HTTPHeaderServiceHome)
+		cid := c.GetHeader(goctx.HTTPHeaderCID)
+		path := c.Request.URL.Path
+
+		if ns == localNamespace {
+			c.Next()
+			return
+		}
+		ctx := GetContextFromGin(c)
+		sp, needFinish := gotrace.CreateSpan(ctx, c.HandlerName())
+		if needFinish {
+			defer sp.Finish()
+		}
+
+		errInject := gotrace.InjectSpan(sp, c.Request.Header)
+		if errInject != nil {
+			m800log.Info(ctx, "create inject span error:", errInject)
+		}
+		tags := &gotrace.TagsMap{
+			Header: c.Request.Header,
+			Method: c.Request.Method,
+		}
+		forwardedHost := service + "." + ns + ":" + servicePort
+		crossSp := gotrace.CreateChildOfSpan(ctx, crossSpanName)
+		defer crossSp.Finish()
+
+		gotrace.AttachHttpTags(crossSp, tags)
+		crossSp.SetTag(TraceTagForward, forwardedHost)
+		crossSp.SetTag(TraceTagFromNs, localNamespace)
+		m800log.Debugf(ctx, "[cross region middleware] do the cross forward to :%s, cid: %s, path: %s", forwardedHost, cid, path)
+		proxy := newProxy(ctx, forwardedHost, timeout, proxyErrorCode)
+		proxy.ServeHTTP(c.Writer, c.Request)
+		c.Abort()
+	}
+}
+
+func BanAnonymousMiddleware(errCode gopkg.CodeError) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isAnms, err := strconv.ParseBool(c.GetHeader(goctx.HTTPHeaderUserAnms))
+		if err != nil || isAnms {
+			GinError(c, errCode)
+			c.Abort()
+		}
+
+		c.Next()
+	}
 }

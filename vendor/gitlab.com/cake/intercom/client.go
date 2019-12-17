@@ -1,19 +1,25 @@
 package intercom
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strings"
 	"time"
 
-	"gitlab.com/general-backend/goctx"
-	"gitlab.com/general-backend/gopkg"
-	"gitlab.com/general-backend/gotrace"
-	"gitlab.com/general-backend/m800log"
+	conntrack "github.com/eaglerayp/go-conntrack"
+
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
+	"gitlab.com/cake/goctx"
+	"gitlab.com/cake/gopkg"
+	"gitlab.com/cake/gotrace/v2"
+	"gitlab.com/cake/m800log"
 )
 
 var (
@@ -23,9 +29,13 @@ var (
 func init() {
 	defaultTimeout := 30 * time.Second
 	tr := &http.Transport{
-		MaxIdleConns:       10,
-		IdleConnTimeout:    defaultTimeout,
-		DisableCompression: true,
+		DialContext: conntrack.NewDialContextFunc(
+			conntrack.DialWithName("intercom"),
+		),
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 100,
+		IdleConnTimeout:     defaultTimeout,
+		DisableCompression:  true,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
@@ -39,6 +49,7 @@ const (
 	HeaderAuthorization = "Authorization"
 	HeaderContentType   = "Content-Type"
 	HeaderJSON          = "application/json"
+	HeaderForm          = "application/x-www-form-urlencoded"
 )
 
 // SetHTTPClient set the package default http client
@@ -46,98 +57,163 @@ func SetHTTPClient(client *http.Client) {
 	httpClient = client
 }
 
+// SetHTTPClientTimeout set the timeout of default http client
+func SetHTTPClientTimeout(to time.Duration) {
+	httpClient.Timeout = to
+}
+
 // GetHTTPClient returns the default httpClient, lazy init the httpClient
 func GetHTTPClient() *http.Client {
 	return httpClient
 }
 
-// M800Do
-func M800Do(ctx goctx.Context, req *http.Request) (result *JsonResponse, err gopkg.CodeError) {
-	httpResp, err := HTTPDo(ctx, req)
+// HTTPNewRequest
+func HTTPNewRequest(ctx goctx.Context, method, url string, body io.Reader) (*http.Request, gopkg.CodeError) {
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
-		return
+		m800log.Errorf(ctx, fmt.Sprintf("new http request error: %+v", err))
+		return nil, gopkg.NewCodeError(CodeNewRequest, err.Error())
 	}
-	result = &JsonResponse{}
-	body, errRead := readFromReadCloser(httpResp.Body)
-	if errRead != nil {
-		ctx.Set(goctx.LogKeyErrorCode, errRead.ErrorCode())
-		LogDumpResponse(ctx, ErrorTraceLevel, httpResp)
-		return
-	}
-	err = ParseJSON(ctx, body, result)
-	if err != nil {
-		ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
-		LogDumpResponseAndBody(ctx, ErrorTraceLevel, httpResp, body)
-		return
-	}
-
-	if result.Code != 0 {
-		ctx.Set(goctx.LogKeyErrorCode, result.Code)
-		LogDumpRequest(ctx, ErrorTraceLevel, req)
-		LogDumpResponseAndBody(ctx, ErrorTraceLevel, httpResp, body)
-		err = gopkg.NewCodeError(result.Code, result.Message)
-		return
-	}
-	return
+	return req, nil
 }
 
-// HTTPDo
+// M800Do is used for internal service HTTP request
+func M800Do(ctx goctx.Context, req *http.Request) (result *JsonResponse, err gopkg.CodeError) {
+	client := GetHTTPClient()
+	httpResp, err := httpDo(ctx, client, req, 1)
+	if err != nil {
+		return nil, err
+	}
+	return m800DoPostProcessing(ctx, httpResp)
+}
+
+// M800Do is used for internal service HTTP request
+func M800DoGivenBody(ctx goctx.Context, req *http.Request, body []byte) (result *JsonResponse, err gopkg.CodeError) {
+	client := GetHTTPClient()
+	httpResp, err := httpDoGivenBody(ctx, client, req, body, 1)
+	if err != nil {
+		return nil, err
+	}
+	return m800DoPostProcessing(ctx, httpResp)
+}
+
+// HTTPPostForm
+func HTTPPostForm(ctx goctx.Context, url string, data url.Values) (resp *http.Response, err gopkg.CodeError) {
+	req, err := HTTPNewRequest(ctx, http.MethodPost, url, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(HeaderContentType, HeaderForm)
+	client := GetHTTPClient()
+	return httpDo(ctx, client, req, 1)
+}
+
+// HTTPDo is used for external service request, will print debug log of request
 func HTTPDo(ctx goctx.Context, req *http.Request) (resp *http.Response, err gopkg.CodeError) {
+	client := GetHTTPClient()
+	return httpDo(ctx, client, req, 1)
+}
+
+// HTTPDoGivenBody
+func HTTPDoGivenBody(ctx goctx.Context, req *http.Request, body []byte) (resp *http.Response, err gopkg.CodeError) {
+	client := GetHTTPClient()
+	return httpDoGivenBody(ctx, client, req, body, 1)
+}
+
+func httpDoGivenBody(ctx goctx.Context, client *http.Client, req *http.Request, body []byte, skip int) (resp *http.Response, err gopkg.CodeError) {
+	req.Body = ioutil.NopCloser(bytes.NewReader(body))
+	resp, err = httpDo(ctx, client, req, 1+skip)
+	return resp, err
+}
+
+func httpDo(ctx goctx.Context, client *http.Client, req *http.Request, skip int) (resp *http.Response, err gopkg.CodeError) {
 	tags := &gotrace.TagsMap{
 		Method: req.Method,
 		URL:    req.URL,
 		Header: req.Header,
 	}
 
-	callerName := "HTTPSend"
-	fpcs := make([]uintptr, 1)
-	runtime.Callers(2, fpcs)
-	caller := runtime.FuncForPC(fpcs[0] - 1)
-	if caller != nil {
-		callerName = caller.Name()
-	}
-	ctx.SetHTTPHeaders(req.Header)
+	callerName := getCallerName("HTTPSend", 1+skip)
+	ctx.InjectHTTPHeader(req.Header)
 	// FIXME: performance issue here if use runtime...?
-	sp := gotrace.CreateSpanByContext(callerName, ctx, gotrace.ReferenceChildOf, tags)
+	sp := gotrace.CreateChildOfSpan(ctx, callerName)
 	defer sp.Finish()
+
+	gotrace.AttachHttpTags(sp, tags)
 	errInject := gotrace.InjectSpan(sp, req.Header)
 	if errInject != nil {
 		m800log.Info(ctx, "create inject span error:", errInject)
 	}
 	var errDo error
-	resp, errDo = GetHTTPClient().Do(req)
+	start := time.Now()
+	resp, errDo = client.Do(req)
 	if errDo != nil {
-		sp.SetTag("client.do.error", err)
+		sp.SetTag("client.do.error", errDo)
+		ext.SamplingPriority.Set(sp, uint16(1))
 		LogDumpRequest(ctx, ErrorTraceLevel, req)
-		err = gopkg.NewCodeError(CodeHTTPDo, errDo.Error())
-		return
+		m800log.Errorf(ctx, "[HTTP Do] error: %s", errDo)
+		return nil, gopkg.NewCodeError(CodeHTTPDo, errDo.Error())
 	}
-	if resp.StatusCode >= http.StatusBadRequest {
-		sp.SetTag("client.do.status", resp.StatusCode)
-		LogDumpRequest(ctx, ErrorTraceLevel, req)
-		LogDumpResponse(ctx, ErrorTraceLevel, resp)
-		err = gopkg.NewCodeError(CodeBadHTTPResponse, fmt.Sprintf("return http code: %d", resp.StatusCode))
-	}
-	return
+	respCode := getResponseMetricCode(resp)
+	upstreamCounter.With(prometheus.Labels{
+		labelCode: respCode,
+		labelHost: req.URL.Host,
+	}).Inc()
+	upstreamDuration.With(prometheus.Labels{
+		labelCode: respCode,
+		labelHost: req.URL.Host,
+	}).Observe(time.Since(start).Seconds())
+	return resp, nil
 }
 
-// HTTPPostForm
-func HTTPPostForm(ctx goctx.Context, url string, data url.Values) (resp *http.Response, err gopkg.CodeError) {
-	req, err := HTTPNewRequest(ctx, "POST", url, strings.NewReader(data.Encode()))
+func m800DoPostProcessing(ctx goctx.Context, httpResp *http.Response) (result *JsonResponse, err gopkg.CodeError) {
+	// should not get this nil http resp
+	if httpResp == nil {
+		m800log.Error(ctx, "[M800Do] got nil http response with no error")
+		return nil, gopkg.NewCodeError(CodeBadHTTPResponse, "nil response")
+	}
+
+	respPrinted := logDumpResponsePrinted(ctx, logrus.DebugLevel, httpResp, false)
+	body, err := ReadFromReadCloser(httpResp.Body)
 	if err != nil {
+		ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+		_ = logDumpResponsePrinted(ctx, ErrorTraceLevel, httpResp, respPrinted)
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	return HTTPDo(ctx, req)
+	result = &JsonResponse{}
+	result.HTTPStatus = httpResp.StatusCode
+	err = ParseJSON(ctx, body, result)
+	if err != nil {
+		ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+		_ = logDumpResponseGivenBodyPrinted(ctx, ErrorTraceLevel, httpResp, body, respPrinted)
+		return result, err
+	}
+
+	if result.Code != 0 {
+		ctx.Set(goctx.LogKeyErrorCode, result.Code)
+		_ = logDumpResponseGivenBodyPrinted(ctx, ErrorTraceLevel, httpResp, body, respPrinted)
+		return result, gopkg.NewCodeError(result.Code, result.Message)
+	}
+	return result, nil
 }
 
-func HTTPNewRequest(ctx goctx.Context, method, url string, body io.Reader) (*http.Request, gopkg.CodeError) {
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		m800log.Error(ctx, "new http request error:", err)
-		return nil, gopkg.NewCodeError(CodeNewRequest, err.Error())
+func getResponseMetricCode(resp *http.Response) (status string) {
+	if resp == nil {
+		return "error"
 	}
-	return req, nil
+	c := resp.StatusCode
+	switch {
+	case c >= 500:
+		status = "5xx"
+	case c >= 400: // Client error.
+		status = "4xx"
+	case c >= 300: // Redirection.
+		status = "3xx"
+	case c >= 200: // Success.
+		status = "2xx"
+	default: // Informational.
+		status = resp.Status
+	}
+	return status
 }

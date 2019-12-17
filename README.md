@@ -2,10 +2,10 @@
 
 ## M800 Libraries
 
-* `gitlab.com/general-backend/goctx`
-* `gitlab.com/general-backend/gotrace`
-* `gitlab.com/general-backend/m800log`
-* `gitlab.com/general-backend/mgopool`
+* `gitlab.com/cake/goctx`
+* `gitlab.com/cake/gotrace`
+* `gitlab.com/cake/m800log`
+* `gitlab.com/cake/mgopool`
 
 ## Common Libraries
 

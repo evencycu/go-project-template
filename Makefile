@@ -4,6 +4,7 @@ GOPATH=$(shell echo $$GOPATH)
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
+DEVOPSTOOL=$(GOPATH)/src/gitlab.com/cake/DevOps-Tools
 APPCONFIG=$(GOPATH)/src/gitlab.com/cake/app-config
 ARTIFACTORY=artifactory.devops.maaii.com/lc-docker-local/
 DOCKERTAG=$(ARTIFACTORY)$(APP)
@@ -11,26 +12,25 @@ PWD=$(shell pwd)
 PORT=$(shell head -10 local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')
 SOURCE=./...
 REVISION=$(shell git rev-list -1 HEAD)
-TAG=$(shell git tag --sort=-version:refname --points-at HEAD | head -n1)
+TAG=$(shell git tag -l --points-at HEAD | tail -1)
 ifeq ($(TAG),)
 TAG=$(REVISION)
 endif
 BR=$(shell git rev-parse --abbrev-ref HEAD)
 DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+BLUEPRINT_PATH=blueprint/$(APP).apib
+export GOPRIVATE=gitlab.com*
 
 build: 
-	go install -i -v -ldflags "-s -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE) 
+	go install -mod=vendor -i -v -ldflags "-s -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE) 
 
 run: build
 	$(GOPATH)/bin/$(APP) -config $(CONF)
 
-update:
-	git pull
-
 test:
 	@echo "Start unit tests & vet..."
 	go vet $(SOURCE)
-	go test -race -cover $(SOURCE)
+	go test -cover -race -timeout 60s $(SOURCE)
 
 clean:
 	rm -rf pkg
@@ -42,6 +42,7 @@ modrun:
 	$(GOPATH)/bin/$(APP) -config $(CONF) 
 
 modvendor:
+	- rm go.sum
 	GO111MODULE=on go build -v $(SOURCE) 
 	GO111MODULE=on go mod tidy
 	GO111MODULE=on go mod vendor
@@ -80,12 +81,15 @@ skdelete:
 apib:
 	@echo "Make sure you have install snowboard"
 	snowboard lint blueprint.md
-	# snowboard html -o blueprint/blueprint.html blueprint.md
 	snowboard apib -o blueprint/$(APP).apib blueprint.md
-	sed -i 's/XVERSION/$(TAG)/g' blueprint/$(APP).apib
-	sed -i 's/XGITCOMMIT/$(REVISION)/g' blueprint/$(APP).apib
-	sed -i 's/XLASTUPDATED/$(DATE)/g' blueprint/$(APP).apib
+	sed -i'' -e 's/LASTUPDATED/$(DATE)/g' $(BLUEPRINT_PATH)
+	- rm $(BLUEPRINT_PATH)-e
+	@echo "Completed"
 
 apibrun: 
 	@echo "Make sure you have install snowboard"
 	snowboard --watch --watch-interval 2s html -o blueprint.html -s blueprint.md
+
+sonarscan:
+	$(DEVOPSTOOL)/sonar-scanner-tools/local-scan.sh test $(PWD)
+	$(DEVOPSTOOL)/sonar-scanner-tools/local-scan.sh upload $(PWD)

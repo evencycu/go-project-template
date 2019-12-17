@@ -1,0 +1,17 @@
+run:
+  deadline: 5m
+
+linters:
+  enable:
+    - interfacer
+    - unconvert
+    - misspell
+    - gocyclo
+    - maligned
+    - prealloc
+
+linters-settings:
+  gocyclo:
+    min-complexity: 30
+  golint:
+    min-confidence: 0.75

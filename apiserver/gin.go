@@ -5,14 +5,18 @@ import (
 	"log"
 	"net/http"
 
-	ginprometheus "github.com/eaglerayp/go-gin-prometheus"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	ginprometheus "gitlab.com/cake/gin-prometheus"
+	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/intercom"
-	"gitlab.com/general-backend/goctx"
-	"gitlab.com/general-backend/m800log"
-	"gitlab.com/general-backend/mgopool"
+	"gitlab.com/cake/m800log"
+	"gitlab.com/cake/mgopool"
 	"gitlab.com/rayshih/go-project-template/gpt"
+)
+
+var (
+	metricSystem = "gin"
 )
 
 func InitGinServer(ctx goctx.Context) *http.Server {
@@ -22,7 +26,12 @@ func InitGinServer(ctx goctx.Context) *http.Server {
 	router.Use(intercom.M800Recovery(gpt.CodeInternalServerError))
 
 	// Add gin prometheus metrics
-	p := ginprometheus.NewPrometheus("gin")
+	p, err := ginprometheus.NewPrometheus(metricSystem,
+		ginprometheus.HistogramMetrics(metricSystem, ginprometheus.DefaultDurationBucket, ginprometheus.DefaultSizeBucket),
+		ginprometheus.HistogramHandleFunc())
+	if err != nil {
+		panic("gin prometheus init error:" + err.Error())
+	}
 	p.Use(router)
 
 	// general service for debugging

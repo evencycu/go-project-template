@@ -1,9 +1,15 @@
 package intercom
 
-import "github.com/sirupsen/logrus"
+import (
+	"github.com/sirupsen/logrus"
+)
 
 const (
-	TraceTagGinError = "gin.error"
+	TraceTagGinErrorCode = "gin.error.code"
+)
+
+const (
+	KeyBody = "rb"
 )
 
 const (
@@ -17,3 +23,7 @@ const (
 var (
 	ErrorTraceLevel = logrus.WarnLevel
 )
+
+func SetErrorTraceLevel(lvl logrus.Level) {
+	ErrorTraceLevel = lvl
+}
