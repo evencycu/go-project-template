@@ -70,6 +70,10 @@ func reportDialerConnEstablished(dialerName, addr string) {
 	dialerConnEstablishedTotal.WithLabelValues(dialerName, addr).Inc()
 }
 
+func preRegisterDialerConnClosed(dialerName, addr string) {
+	dialerConnClosedTotal.WithLabelValues(dialerName, addr)
+}
+
 func reportDialerConnClosed(dialerName, addr string) {
 	dialerConnClosedTotal.WithLabelValues(dialerName, addr).Inc()
 }

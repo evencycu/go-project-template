@@ -8,12 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	ginprometheus "gitlab.com/cake/gin-prometheus"
+	"gitlab.com/cake/go-project-template/gpt"
+	"gitlab.com/cake/go-project-template/metric_api"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/intercom"
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool"
-	"gitlab.com/rayshih/go-project-template/gpt"
-	"gitlab.com/rayshih/go-project-template/metric_api"
 )
 
 var (

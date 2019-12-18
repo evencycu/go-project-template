@@ -1,4 +1,4 @@
-module gitlab.com/rayshih/go-project-template
+module gitlab.com/cake/go-project-template
 
 go 1.13
 
@@ -11,7 +11,7 @@ require (
 	gitlab.com/cake/goctx v1.4.7
 	gitlab.com/cake/gopkg v1.3.0
 	gitlab.com/cake/gotrace/v2 v2.0.1
-	gitlab.com/cake/intercom v0.8.3
+	gitlab.com/cake/intercom v0.8.4
 	gitlab.com/cake/m800log v1.4.5
 	gitlab.com/cake/mgopool v1.4.1
 )

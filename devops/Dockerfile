@@ -14,7 +14,7 @@ COPY . .
 ARG GITVERSION
 ARG GITBRANCH
 ARG GITREVISION
-ENV PKGPATH=gitlab.com/rayshih/go-project-template/gpt
+ENV PKGPATH=gitlab.com/cake/go-project-template/gpt
 RUN export BUILDDATE=$(date +"%Y-%m-%dT%H:%M:%SZ") && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -mod=vendor -ldflags="-w -s -X $PKGPATH.gitCommit=$GITREVISION -X $PKGPATH.appVersion=$GITVERSION -X $PKGPATH.buildDate=$BUILDDATE -X $PKGPATH.gitBranch=$GITBRANCH" -v ./...
 
 # For minimal image

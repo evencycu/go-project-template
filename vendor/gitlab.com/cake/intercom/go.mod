@@ -3,7 +3,7 @@ module gitlab.com/cake/intercom
 go 1.13
 
 require (
-	github.com/eaglerayp/go-conntrack v0.1.0
+	github.com/eaglerayp/go-conntrack v0.1.1
 	github.com/gin-gonic/gin v1.5.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/prometheus/client_golang v1.2.1

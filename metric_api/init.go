@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"gitlab.com/cake/intercom"
-	"gitlab.com/rayshih/go-project-template/gpt"
-	"gitlab.com/rayshih/go-project-template/metric"
+	"gitlab.com/cake/go-project-template/gpt"
+	"gitlab.com/cake/go-project-template/metric"
 )
 
 func init() {

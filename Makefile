@@ -1,5 +1,5 @@
 APP=go-project-template
-PKGPATH=gitlab.com/rayshih/go-project-template/gpt
+PKGPATH=gitlab.com/cake/go-project-template/gpt
 GOPATH=$(shell echo $$GOPATH)
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml

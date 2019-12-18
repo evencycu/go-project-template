@@ -2,7 +2,7 @@
 github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.0
 github.com/cespare/xxhash/v2
-# github.com/eaglerayp/go-conntrack v0.1.0
+# github.com/eaglerayp/go-conntrack v0.1.1
 github.com/eaglerayp/go-conntrack
 # github.com/fsnotify/fsnotify v1.4.7
 github.com/fsnotify/fsnotify
@@ -126,7 +126,7 @@ gitlab.com/cake/goctx
 gitlab.com/cake/gopkg
 # gitlab.com/cake/gotrace/v2 v2.0.1
 gitlab.com/cake/gotrace/v2
-# gitlab.com/cake/intercom v0.8.3
+# gitlab.com/cake/intercom v0.8.4
 gitlab.com/cake/intercom
 # gitlab.com/cake/m800log v1.4.5
 gitlab.com/cake/m800log

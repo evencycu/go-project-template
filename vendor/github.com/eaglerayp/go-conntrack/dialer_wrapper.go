@@ -134,6 +134,7 @@ func dialClientConnTracker(ctx context.Context, network string, addr string, dia
 	}
 	if opts.monitoring {
 		reportDialerConnEstablished(dialerName, conn.RemoteAddr().String())
+		preRegisterDialerConnClosed(dialerName, conn.RemoteAddr().String())
 	}
 	tracker := &clientConnTracker{
 		Conn:       conn,

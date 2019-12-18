@@ -16,8 +16,8 @@ import (
 	"gitlab.com/cake/gotrace/v2"
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool"
-	"gitlab.com/rayshih/go-project-template/apiserver"
-	"gitlab.com/rayshih/go-project-template/gpt"
+	"gitlab.com/cake/go-project-template/apiserver"
+	"gitlab.com/cake/go-project-template/gpt"
 
 	"github.com/spf13/viper"
 	jaeger "github.com/uber/jaeger-client-go"
