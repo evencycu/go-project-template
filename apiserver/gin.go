@@ -13,6 +13,7 @@ import (
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool"
 	"gitlab.com/rayshih/go-project-template/gpt"
+	"gitlab.com/rayshih/go-project-template/metric_api"
 )
 
 var (
@@ -43,7 +44,10 @@ func InitGinServer(ctx goctx.Context) *http.Server {
 	router.GET("/mongo", mongoInfo)
 	router.GET("/ready", ready)
 
-	// TODO: Add application routing
+	rootGroup := router.Group("")
+
+	// Add application API
+	metric_api.AddMetricEndpoint(rootGroup)
 
 	port := viper.GetString("http.port")
 	httpServer := &http.Server{

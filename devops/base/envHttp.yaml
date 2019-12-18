@@ -14,7 +14,7 @@ spec:
               value: "40s"
             - name: HTTP_WRITE_TIMEOUT
               value: "40s"
-            - name: HTTP_CLIENT_TIMEOUT
+            - name: HTTP_API_TIMEOUT
               value: "15s"
             - name: HTTP_MODE
               value: "debug"
