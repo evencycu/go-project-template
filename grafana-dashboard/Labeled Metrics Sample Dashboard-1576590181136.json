@@ -118,13 +118,13 @@
       "targets": [
         {
           "expr": "sum (rate(go_project_template_labeled_counter_total[$__interval])) by (service)",
-          "hide": true,
+          "hide": false,
           "legendFormat": "{{service}}",
           "refId": "A"
         },
         {
           "expr": "sum (rate(go_project_template_labeled_counter_total{service=\"service1\"}[1m])) by (service)",
-          "hide": false,
+          "hide": true,
           "refId": "B"
         }
       ],
