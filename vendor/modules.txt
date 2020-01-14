@@ -130,7 +130,7 @@ gitlab.com/cake/gotrace/v2
 gitlab.com/cake/intercom
 # gitlab.com/cake/m800log v1.4.5
 gitlab.com/cake/m800log
-# gitlab.com/cake/mgopool v1.4.1
+# gitlab.com/cake/mgopool v1.4.2
 gitlab.com/cake/mgopool
 # go.uber.org/atomic v1.4.0
 go.uber.org/atomic

@@ -1,7 +1,6 @@
 package apiserver
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -58,7 +57,7 @@ func InitGinServer(ctx goctx.Context) *http.Server {
 	}
 
 	go func() {
-		m800log.Info(ctx, fmt.Sprintf("Server is running and listening port: %s", port))
+		m800log.Infof(ctx, "Server is running and listening port: %s", port)
 		// service connections
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
@@ -68,6 +67,10 @@ func InitGinServer(ctx goctx.Context) *http.Server {
 }
 
 func mongoInfo(c *gin.Context) {
+	if mgopool.IsNil() {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
 	status := map[string]interface{}{}
 	status["Len"] = mgopool.Len()
 	status["IsAvailable"] = mgopool.IsAvailable()
@@ -85,19 +88,28 @@ func appConfig(c *gin.Context) {
 }
 
 func health(c *gin.Context) {
-	err := mgopool.Ping(goctx.Background())
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{})
-		return
-	}
 	c.JSON(http.StatusOK, gin.H{})
 }
 
 func ready(c *gin.Context) {
-	err := mgopool.Ping(goctx.Background())
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{})
-		return
+	ctx := intercom.GetContextFromGin(c)
+	result := gin.H{}
+	result["local mongo"] = true
+	code := http.StatusOK
+	mongoNil := mgopool.IsNil()
+	if mongoNil {
+		code = http.StatusServiceUnavailable
+		result["local mongo"] = false
+	} else {
+		if errMongo := mgopool.Ping(ctx); errMongo != nil {
+			m800log.Errorf(ctx, "[ready] local mongo unhealthy: %v", errMongo)
+			code = http.StatusServiceUnavailable
+			result["local mongo"] = false
+		}
 	}
-	c.JSON(http.StatusOK, gin.H{})
+
+	response := gin.H{}
+	response["code"] = 0
+	response["result"] = result
+	c.JSON(code, response)
 }

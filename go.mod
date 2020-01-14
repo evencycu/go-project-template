@@ -13,5 +13,5 @@ require (
 	gitlab.com/cake/gotrace/v2 v2.0.1
 	gitlab.com/cake/intercom v0.8.4
 	gitlab.com/cake/m800log v1.4.5
-	gitlab.com/cake/mgopool v1.4.1
+	gitlab.com/cake/mgopool v1.4.2
 )

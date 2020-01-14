@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/cake/go-project-template/apiserver"
+	"gitlab.com/cake/go-project-template/gpt"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gotrace/v2"
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool"
-	"gitlab.com/cake/go-project-template/apiserver"
-	"gitlab.com/cake/go-project-template/gpt"
 
 	"github.com/spf13/viper"
 	jaeger "github.com/uber/jaeger-client-go"
@@ -78,6 +78,7 @@ func main() {
 		defer closer.Close()
 	}
 
+	httpServer := apiserver.InitGinServer(systemCtx)
 	// Init mongo
 
 	// if connect to multi mongodb cluster, take this pool to use
@@ -93,8 +94,6 @@ func main() {
 		panic(err)
 	}
 
-	httpServer := apiserver.InitGinServer(systemCtx)
-
 	// graceful shutdown
 	quit := make(chan os.Signal, 5)
 	signal.Notify(quit, os.Interrupt)
@@ -104,7 +103,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown:", err)
+		log.Fatal("Server Shutdown error:", err)
 	}
 	log.Println("Server exiting")
 }

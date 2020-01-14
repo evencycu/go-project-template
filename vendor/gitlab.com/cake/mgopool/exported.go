@@ -19,6 +19,10 @@ func Close() {
 	std.Close()
 }
 
+func IsNil() bool {
+	return std == nil
+}
+
 func IsAvailable() bool {
 	return std.IsAvailable()
 }
