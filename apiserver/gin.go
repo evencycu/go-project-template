@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	ginprometheus "gitlab.com/cake/gin-prometheus"
+	new_err "gitlab.com/cake/go-project-template/err"
 	"gitlab.com/cake/go-project-template/gpt"
 	"gitlab.com/cake/go-project-template/metric_api"
 	"gitlab.com/cake/goctx"
@@ -46,6 +47,7 @@ func InitGinServer(ctx goctx.Context) *http.Server {
 	rootGroup := router.Group("")
 
 	// Add application API
+	new_err.AddErrorEndpoint(rootGroup)
 	metric_api.AddMetricEndpoint(rootGroup)
 
 	port := viper.GetString("http.port")

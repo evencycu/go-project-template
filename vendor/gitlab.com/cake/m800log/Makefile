@@ -1,3 +1,5 @@
+export GOPRIVATE=gitlab.com*
+
 build:
 	go build
 

@@ -1,41 +1,120 @@
 package intercom
 
 import (
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"gitlab.com/cake/gopkg"
 )
 
 func init() {
-	prometheus.MustRegister(upstreamCounter)
-	prometheus.MustRegister(upstreamDuration)
+	prometheus.MustRegister(externalUpstreamCounter)
+	prometheus.MustRegister(externalUpstreamDuration)
+	prometheus.MustRegister(internalUpstreamCounter)
+	prometheus.MustRegister(internalUpstreamDuration)
 }
 
 const (
 	metricNs          = "intercom"
 	subSystemUpstream = "upstream"
 
-	labelHost = "host"
-	labelCode = "code"
+	labelHost         = "host"
+	labelHTTPCode     = "code"
+	labelInternalCode = "eCode"
 )
 
 var (
-	upstreamCounter = prometheus.NewCounterVec(
+	externalUpstreamCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricNs,
 			Subsystem: subSystemUpstream,
-			Name:      "upstream_sent_total",
-			Help:      "Total upstream request number sent",
+			Name:      "external_upstream_sent_total",
+			Help:      "Total external upstream request number sent",
 		},
-		[]string{labelHost, labelCode},
+		[]string{labelHost, labelHTTPCode, labelInternalCode},
 	)
 
-	upstreamDuration = prometheus.NewHistogramVec(
+	externalUpstreamDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricNs,
 			Subsystem: subSystemUpstream,
-			Name:      "upstream_duration_seconds",
-			Help:      "Total upstream request duration",
+			Name:      "external_upstream_duration_seconds",
+			Help:      "Total external upstream request duration",
 			Buckets:   prometheus.ExponentialBuckets(0.1, 2, 10),
 		},
-		[]string{labelHost, labelCode},
+		[]string{labelHost, labelHTTPCode, labelInternalCode},
+	)
+
+	internalUpstreamCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemUpstream,
+			Name:      "internal_upstream_sent_total",
+			Help:      "Total internal upstream request number sent",
+		},
+		[]string{labelHost, labelInternalCode},
+	)
+
+	internalUpstreamDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemUpstream,
+			Name:      "internal_upstream_duration_seconds",
+			Help:      "Total internal upstream request duration",
+			Buckets:   prometheus.ExponentialBuckets(0.1, 2, 10),
+		},
+		[]string{labelHost, labelInternalCode},
 	)
 )
+
+// external metrics duration only includes httpDo
+func updateExternalMetrics(host string, start time.Time, resp *http.Response, err gopkg.CodeError) {
+	if resp == nil && err == nil {
+		return
+	}
+
+	HTTPCode := "0"
+	eCode := "0"
+	if err != nil {
+		eCode = strconv.Itoa(err.ErrorCode())
+	}
+	if resp != nil {
+		HTTPCode = getResponseMetricCode(resp)
+	}
+
+	externalUpstreamCounter.With(prometheus.Labels{
+		labelHTTPCode:     HTTPCode,
+		labelInternalCode: eCode,
+		labelHost:         host,
+	}).Inc()
+	externalUpstreamDuration.With(prometheus.Labels{
+		labelHTTPCode:     HTTPCode,
+		labelInternalCode: eCode,
+		labelHost:         host,
+	}).Observe(time.Since(start).Seconds())
+}
+
+// internal metrics duration includes httpDo & m800DoPostProcessing
+func updateInternalMetrics(host string, start time.Time, result *JsonResponse, err gopkg.CodeError) {
+	if result == nil && err == nil {
+		return
+	}
+
+	var code string
+	if err != nil {
+		code = strconv.Itoa(err.ErrorCode())
+	} else {
+		code = strconv.Itoa(result.Code)
+	}
+
+	internalUpstreamCounter.With(prometheus.Labels{
+		labelInternalCode: code,
+		labelHost:         host,
+	}).Inc()
+	internalUpstreamDuration.With(prometheus.Labels{
+		labelInternalCode: code,
+		labelHost:         host,
+	}).Observe(time.Since(start).Seconds())
+}

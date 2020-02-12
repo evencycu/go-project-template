@@ -35,6 +35,13 @@ func (ic *IntercomClient) GetHTTPClient() *http.Client {
 
 func (ic *IntercomClient) M800Do(ctx goctx.Context, req *http.Request) (result *JsonResponse, err gopkg.CodeError) {
 	client := ic.httpClient
+
+	// internal upstream metrics
+	start := time.Now()
+	defer func() {
+		updateInternalMetrics(req.URL.Host, start, result, err)
+	}()
+
 	httpResp, err := httpDo(ctx, client, req, 1)
 	if err != nil {
 		return nil, err
@@ -44,6 +51,13 @@ func (ic *IntercomClient) M800Do(ctx goctx.Context, req *http.Request) (result *
 
 func (ic *IntercomClient) M800DoGivenBody(ctx goctx.Context, req *http.Request, body []byte) (result *JsonResponse, err gopkg.CodeError) {
 	client := ic.httpClient
+
+	// internal upstream metrics
+	start := time.Now()
+	defer func() {
+		updateInternalMetrics(req.URL.Host, start, result, err)
+	}()
+
 	httpResp, err := httpDoGivenBody(ctx, client, req, body, 1)
 	if err != nil {
 		return nil, err
@@ -53,11 +67,25 @@ func (ic *IntercomClient) M800DoGivenBody(ctx goctx.Context, req *http.Request, 
 
 func (ic *IntercomClient) HTTPDo(ctx goctx.Context, req *http.Request) (resp *http.Response, err gopkg.CodeError) {
 	client := ic.httpClient
+
+	// external upstream metrics
+	start := time.Now()
+	defer func() {
+		updateExternalMetrics(req.URL.Host, start, resp, err)
+	}()
+
 	return httpDo(ctx, client, req, 1)
 }
 
 func (ic *IntercomClient) HTTPDoGivenBody(ctx goctx.Context, req *http.Request, body []byte) (resp *http.Response, err gopkg.CodeError) {
 	client := ic.httpClient
+
+	// external upstream metrics
+	start := time.Now()
+	defer func() {
+		updateExternalMetrics(req.URL.Host, start, resp, err)
+	}()
+
 	return httpDoGivenBody(ctx, client, req, body, 1)
 }
 
@@ -68,5 +96,12 @@ func (ic *IntercomClient) HTTPPostForm(ctx goctx.Context, url string, data url.V
 	}
 	req.Header.Set(HeaderJSON, HeaderForm)
 	client := ic.httpClient
+
+	// external upstream metrics
+	start := time.Now()
+	defer func() {
+		updateExternalMetrics(req.URL.Host, start, resp, err)
+	}()
+
 	return httpDo(ctx, client, req, 1)
 }

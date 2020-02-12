@@ -2,6 +2,7 @@ package goctx
 
 import (
 	"fmt"
+	"strings"
 
 	uuid "github.com/gofrs/uuid"
 )
@@ -58,21 +59,23 @@ const (
 	// LogKeyLevel is the level field key
 	LogKeyLevel = "level"
 	// LogKeyMessage is the message field key
-	LogKeyMessage      = "message"
-	LogKeyEntryType    = "entryType"
-	LogKeyURI          = "uri"
-	LogKeyMethod       = "method"
-	LogKeyCallFunc     = "xfunc"
-	LogKeyCallLine     = "xline"
-	LogKeyHTTPMethod   = "httpMethod"
-	LogKeyInstance     = "instanceID"
-	LogKeyVersion      = "vid"
-	LogKeyCase         = "caseType"
-	LogKeyNamespace    = "ns"
-	LogKeyEnv          = "env"
-	LogKeyErrorCode    = "eCode"
-	LogKeyErrorMessage = "eMessage"
-	LogKeyErrorType    = "eType"
+	LogKeyMessage          = "message"
+	LogKeyEntryType        = "entryType"
+	LogKeyURI              = "uri"
+	LogKeyMethod           = "method"
+	LogKeyCallFunc         = "xfunc"
+	LogKeyCallLine         = "xline"
+	LogKeyHTTPMethod       = "httpMethod"
+	LogKeyInstance         = "instanceID"
+	LogKeyVersion          = "vid"
+	LogKeyCase             = "caseType"
+	LogKeyNamespace        = "ns"
+	LogKeyEnv              = "env"
+	LogKeyErrorCode        = "eCode"
+	LogKeyErrorMessage     = "eMessage"
+	LogKeyErrorType        = "eType"
+	LogKeyWrapErrorCode    = "ueCode"
+	LogKeyWrapErrorMessage = "ueMessage"
 
 	// golang tp add fields
 
@@ -109,6 +112,7 @@ var (
 )
 
 func init() {
+	// role special handle
 	sKMap = map[string]string{
 		LogKeyTrace:          HTTPHeaderTrace,
 		LogKeyJaegerDebug:    HTTPHeaderJaegerDebug,
@@ -123,9 +127,9 @@ func init() {
 		LogKeyUserHome:       HTTPHeaderUserHome,
 		LogKeyServiceHome:    HTTPHeaderServiceHome,
 		LogKeyServiceType:    HTTPHeaderServiceType,
-		LogKeyUserRole:       HTTPHeaderUserRole,
-		LogKeyUserGroup:      HTTPHeaderUserGroup,
-		LogKeyUserAnms:       HTTPHeaderUserAnms,
+		// LogKeyUserRole:       HTTPHeaderUserRole,
+		LogKeyUserGroup: HTTPHeaderUserGroup,
+		LogKeyUserAnms:  HTTPHeaderUserAnms,
 	}
 
 	hKMap = map[string]string{
@@ -142,9 +146,9 @@ func init() {
 		HTTPHeaderUserHome:       LogKeyUserHome,
 		HTTPHeaderServiceHome:    LogKeyServiceHome,
 		HTTPHeaderServiceType:    LogKeyServiceType,
-		HTTPHeaderUserRole:       LogKeyUserRole,
-		HTTPHeaderUserGroup:      LogKeyUserGroup,
-		HTTPHeaderUserAnms:       LogKeyUserAnms,
+		// HTTPHeaderUserRole:       LogKeyUserRole,
+		HTTPHeaderUserGroup: LogKeyUserGroup,
+		HTTPHeaderUserAnms:  LogKeyUserAnms,
 	}
 }
 
@@ -206,6 +210,11 @@ func GetContextFromGetter(g Getter) Context {
 			c.Set(sk, v)
 		}
 	}
+
+	if role := g.Get(HTTPHeaderUserRole); role != "" {
+		c.Set(LogKeyUserRole, strings.Split(role, ","))
+	}
+
 	return c
 }
 
@@ -218,7 +227,19 @@ func GetContextFromGetHeader(g GetHeaderer) Context {
 			c.Set(sk, v)
 		}
 	}
+	if role := g.GetHeader(HTTPHeaderUserRole); role != "" {
+		c.Set(LogKeyUserRole, strings.Split(role, ","))
+	}
+
 	return c
+}
+
+func CopyContext(ctx Context) Context {
+	newCtx := Background()
+	for k, v := range ctx.Map() {
+		newCtx.Set(k, v)
+	}
+	return newCtx
 }
 
 func (c *MapContext) InjectHTTPHeader(s Setter) {
@@ -238,6 +259,12 @@ func (c *MapContext) HeaderKeyMap() (ret map[string]string) {
 	}
 	if _, ok := c.keys[LogKeyTrace]; ok {
 		ret[HTTPHeaderTrace] = fmt.Sprintf("%s", c.Value(mapContextKey(LogKeyTrace)))
+	}
+	switch role := c.Get(LogKeyUserRole).(type) {
+	case string:
+		ret[HTTPHeaderUserRole] = role
+	case []string:
+		ret[HTTPHeaderUserRole] = strings.Join(role, ",")
 	}
 	return
 }

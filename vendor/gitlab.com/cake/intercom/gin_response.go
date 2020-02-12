@@ -89,7 +89,7 @@ func GinAllResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
 	response := Response{}
 	response.Result = result
 	response.Code = err.ErrorCode()
-	response.Message = err.Error()
+	response.Message = err.ErrorMsg()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
 	c.AbortWithStatusJSON(http.StatusOK, response)
@@ -99,7 +99,7 @@ func GinAllResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
 func GinOKError(c *gin.Context, err gopkg.CodeError) {
 	response := Response{}
 	response.Code = err.ErrorCode()
-	response.Message = err.Error()
+	response.Message = err.ErrorMsg()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
 	c.AbortWithStatusJSON(http.StatusOK, response)
@@ -114,7 +114,7 @@ func GinError(c *gin.Context, err gopkg.CodeError) {
 
 	response := Response{
 		Code:    err.ErrorCode(),
-		Message: err.Error(),
+		Message: err.ErrorMsg(),
 		CID:     c.GetHeader(goctx.HTTPHeaderCID),
 	}
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
@@ -130,7 +130,7 @@ func GinAllErrorResponse(c *gin.Context, result interface{}, err gopkg.CodeError
 	response := Response{}
 	response.Result = result
 	response.Code = err.ErrorCode()
-	response.Message = err.Error()
+	response.Message = err.ErrorMsg()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
 	c.AbortWithStatusJSON(status, response)

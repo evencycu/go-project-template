@@ -2,15 +2,13 @@ package gopkg
 
 import (
 	"fmt"
-	"io"
 	"strconv"
-
-	"github.com/pkg/errors"
 )
 
 // CodeError - Code Error interface
 type CodeError interface {
 	ErrorCode() int
+	ErrorMsg() string
 	Error() string
 	FullError() string
 }
@@ -24,9 +22,14 @@ func (cde ConstCodeError) ErrorCode() int {
 	return i
 }
 
-// Error - return predefined error message
-func (cde ConstCodeError) Error() string {
+// ErrorMsg - return predefined error message
+func (cde ConstCodeError) ErrorMsg() string {
 	return string(cde)[8:]
+}
+
+// Error - return formatted error code and error message
+func (cde ConstCodeError) Error() string {
+	return string(cde)
 }
 
 // FullError - return formatted error code and error message
@@ -34,173 +37,116 @@ func (cde ConstCodeError) FullError() string {
 	return string(cde)
 }
 
-// Wrap - [Not Implemented] Wrap error message
-func (cde ConstCodeError) Wrap(message string) error {
-	return Wrap(cde, message)
+// CarrierCodeError - 7 digits error code following a space and wrapable error message
+// If the ErrMsg is empty, it represents this error happens from upstream
+type CarrierCodeError struct {
+	ErrCode int
+	ErrMsg  string
+	WrapErr error
 }
-
-// CarrierCodeError - 7 digits error code following a space and wrappable error message
-type CarrierCodeError string
 
 // ErrorCode - return error code
 func (cde CarrierCodeError) ErrorCode() int {
-	i, _ := strconv.Atoi(string(cde)[0:7])
-	return i
+	if cde.ErrCode == 0 {
+		if we, ok := cde.WrapErr.(CodeError); ok {
+			return we.ErrorCode()
+		}
+	}
+	return cde.ErrCode
 }
 
-// SetErrorCode - setup the error code and return new CDE
+// SetErrorCode - setup the error code and return new CarrierCodeError instance
 func (cde CarrierCodeError) SetErrorCode(code int) (CarrierCodeError, error) {
 	if code < 1000000 || code > 9999999 {
 		return cde, fmt.Errorf("error code should be 7 digits")
 	}
-	return CarrierCodeError(fmt.Sprintf("%07d %s", code, cde.Error())), nil
+	cde.ErrCode = code
+	return cde, nil
 }
 
-// Error - return predefined error message
+// ErrorMsg - return error message
+func (cde CarrierCodeError) ErrorMsg() string {
+	if cde.ErrMsg == "" {
+		if we, ok := cde.WrapErr.(CarrierCodeError); ok {
+			return we.ErrorMsg()
+		}
+	}
+	return cde.ErrMsg
+}
+
+// Error - return formatted error code and error message
 func (cde CarrierCodeError) Error() string {
-	return string(cde)[8:]
+	if cde.ErrMsg == "" {
+		return cde.WrapErr.Error()
+	}
+	if cde.WrapErr != nil {
+		return fmt.Sprintf("%07d %s: %v", cde.ErrCode, cde.ErrMsg, cde.WrapErr)
+	}
+	return fmt.Sprintf("%07d %s", cde.ErrCode, cde.ErrMsg)
 }
 
 // FullError - return formatted error code and error message
 func (cde CarrierCodeError) FullError() string {
-	return string(cde)
+	return fmt.Sprintf("%07d %s", cde.ErrCode, cde.ErrMsg)
 }
 
-// Wrap - append message to original one and return new CDE
-func (cde CarrierCodeError) Wrap(message string) CarrierCodeError {
-	return CarrierCodeError(fmt.Sprintf("%07d %s", cde.ErrorCode(), cde.Error()+message))
+// WrappedError - return wrappedError
+func (cde CarrierCodeError) WrappedError() string {
+	if cde.WrapErr == nil {
+		return ""
+	}
+	return cde.WrapErr.Error()
+}
+
+// As implements golang 1.13 errors interface
+// It retains extendibility to wrap more type of error
+func (cde CarrierCodeError) As(err interface{}) bool {
+	switch x := err.(type) {
+	case *CodeError:
+		*x = cde
+	case *CarrierCodeError:
+		*x = cde
+	default:
+		return false
+	}
+	return true
+}
+
+// Unwrap implements golang 1.13 error interface
+func (cde CarrierCodeError) Unwrap() error {
+	return cde.WrapErr
+}
+
+// NewWrappedCarrierCodeError returns CarrierCodeError by given error code, message and error
+func NewWrappedCarrierCodeError(code int, message string, err error) CarrierCodeError {
+	if ce, ok := err.(CarrierCodeError); ok {
+		if ce.ErrMsg == "" {
+			ce.ErrCode = code
+			ce.ErrMsg = message
+			return ce
+		}
+	}
+	return CarrierCodeError{
+		ErrCode: code,
+		ErrMsg:  message,
+		WrapErr: err,
+	}
 }
 
 // NewCarrierCodeError returns CarrierCodeError by given error code and message
 func NewCarrierCodeError(code int, message string) CarrierCodeError {
-	return CarrierCodeError(fmt.Sprintf("%07d %s", code, message))
+	return CarrierCodeError{
+		ErrCode: code,
+		ErrMsg:  message,
+	}
+}
+
+// NewWrappedCodeError returns CodeError by given error code, message and error (only accept 7-digits error code)
+func NewWrappedCodeError(code int, message string, wrappedErr error) CodeError {
+	return NewWrappedCarrierCodeError(code, message, wrappedErr)
 }
 
 // NewCodeError returns CodeError by given error code and message (only accept 7-digits error code)
 func NewCodeError(code int, message string) CodeError {
 	return NewCarrierCodeError(code, message)
-}
-
-// AsCodeError - The Error "As" Code Error but more enhanced
-type AsCodeError interface {
-	CodeError
-	CastOff() CodeError
-	AsEqual(CodeError) bool
-	Trace(string)
-	Stack() error
-	Format(s fmt.State, verb rune)
-	Cause() error
-}
-
-// TraceCodeError -  Compatiable error stack trace & CodeError
-// Contain a CodeError for "as" CodeError
-// Using "error" & Wrap as a stack for tracing error history
-type TraceCodeError struct {
-	CodeError
-	stack error
-}
-
-// NewTraceCodeError - Get a new *TraceCodeError from CodeError & external error
-func NewTraceCodeError(der CodeError, err error) *TraceCodeError {
-	return &TraceCodeError{
-		CodeError: der,
-		stack:     err,
-	}
-}
-
-// NewTraceWithMsg  - One sugar function for NewTraceCodeError
-func NewTraceWithMsg(der CodeError, msg string) *TraceCodeError {
-	return &TraceCodeError{
-		CodeError: der,
-		stack:     NewError(msg),
-	}
-}
-
-// Error - return error message
-func (fde *TraceCodeError) Error() string {
-	msg := fde.CodeError.Error()
-	if fde.stack != nil {
-		return fde.stack.Error() + ": " + msg
-	}
-	return msg
-}
-
-// CastOff - Unwrap TraceCodeError to return CodeError
-func (fde *TraceCodeError) CastOff() CodeError {
-	return fde.CodeError
-}
-
-// AsEqual - Return the CodeError is equal or not
-func (fde *TraceCodeError) AsEqual(target CodeError) bool {
-	return fde.CodeError == target
-}
-
-// Trace - Add message for trace
-func (fde *TraceCodeError) Trace(message string) {
-	if fde.stack == nil {
-		fde.stack = NewError(message)
-	} else {
-		fde.stack = Wrap(fde.stack, message)
-	}
-}
-
-// Stack - Return the stack
-func (fde *TraceCodeError) Stack() error {
-	return fde.stack
-}
-
-// Format - Implement the fmt.Formatter interface
-// type Formatter interface {
-//         Format(f State, c rune)
-// }
-// For fmt.Printf("%+v") to print stack trace
-func (fde *TraceCodeError) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v':
-		if s.Flag('+') {
-			fmt.Fprintf(s, "%+v\n%+v\n", fde.stack, fde.CodeError)
-			return
-		}
-		fallthrough
-	case 's', 'q':
-		io.WriteString(s, fde.Error())
-	default:
-		io.WriteString(s, fde.Error())
-	}
-}
-
-// Cause - Implement Cause, Support to found the origin root Cause
-func (fde *TraceCodeError) Cause() error {
-	type causer interface {
-		Cause() error
-	}
-	err := fde.stack
-	for err != nil {
-		cause, ok := err.(causer)
-		if !ok {
-			break
-		}
-		err = cause.Cause()
-	}
-	return err
-}
-
-func NewError(message string) error {
-	return errors.New(message)
-}
-
-func Errorf(format string, args ...interface{}) error {
-	return errors.Errorf(format, args...)
-}
-
-func Wrap(err error, message string) error {
-	return errors.Wrap(err, message)
-}
-
-func Wrapf(err error, format string, args ...interface{}) error {
-	return errors.Wrapf(err, format, args...)
-}
-
-func Cause(err error) error {
-	return errors.Cause(err)
 }

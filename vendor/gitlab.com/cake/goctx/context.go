@@ -18,6 +18,7 @@ type Context interface {
 	Get(key string) interface{}
 	GetCID() (string, error)
 	GetString(key string) (value string, ok bool)
+	GetStringSlice(key string) (value []string, ok bool)
 	GetInt(key string) (value int, ok bool)
 	GetInt64(key string) (value int64, ok bool)
 
@@ -88,6 +89,15 @@ func (c *MapContext) GetString(key string) (value string, ok bool) {
 		return
 	}
 	value, ok = v.(string)
+	return
+}
+
+func (c *MapContext) GetStringSlice(key string) (value []string, ok bool) {
+	v := c.Get(key)
+	if v == nil {
+		return
+	}
+	value, ok = v.([]string)
 	return
 }
 

@@ -13,7 +13,7 @@
   # output = "Discard"
   output = "Stdout"
   # output = "test.log"
-  level = "debug"
+  level = "error"
   timestamp_format = ""
   access_level = "trace"
 

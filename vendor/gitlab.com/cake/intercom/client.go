@@ -3,7 +3,6 @@ package intercom
 import (
 	"bytes"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	conntrack "github.com/eaglerayp/go-conntrack"
 
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gopkg"
@@ -71,8 +69,8 @@ func GetHTTPClient() *http.Client {
 func HTTPNewRequest(ctx goctx.Context, method, url string, body io.Reader) (*http.Request, gopkg.CodeError) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		m800log.Errorf(ctx, fmt.Sprintf("new http request error: %+v", err))
-		return nil, gopkg.NewCodeError(CodeNewRequest, err.Error())
+		ctx.Set(goctx.LogKeyWrapErrorCode, CodeNewRequest)
+		return nil, gopkg.NewWrappedCodeError(0, "", gopkg.NewCodeError(CodeNewRequest, err.Error()))
 	}
 	return req, nil
 }
@@ -80,20 +78,36 @@ func HTTPNewRequest(ctx goctx.Context, method, url string, body io.Reader) (*htt
 // M800Do is used for internal service HTTP request
 func M800Do(ctx goctx.Context, req *http.Request) (result *JsonResponse, err gopkg.CodeError) {
 	client := GetHTTPClient()
+
+	// internal upstream metrics
+	start := time.Now()
+	defer func() {
+		updateInternalMetrics(req.URL.Host, start, result, err)
+	}()
+
 	httpResp, err := httpDo(ctx, client, req, 1)
 	if err != nil {
 		return nil, err
 	}
+
 	return m800DoPostProcessing(ctx, httpResp)
 }
 
 // M800Do is used for internal service HTTP request
 func M800DoGivenBody(ctx goctx.Context, req *http.Request, body []byte) (result *JsonResponse, err gopkg.CodeError) {
 	client := GetHTTPClient()
+
+	// internal upstream metrics
+	start := time.Now()
+	defer func() {
+		updateInternalMetrics(req.URL.Host, start, result, err)
+	}()
+
 	httpResp, err := httpDoGivenBody(ctx, client, req, body, 1)
 	if err != nil {
 		return nil, err
 	}
+
 	return m800DoPostProcessing(ctx, httpResp)
 }
 
@@ -105,18 +119,39 @@ func HTTPPostForm(ctx goctx.Context, url string, data url.Values) (resp *http.Re
 	}
 	req.Header.Set(HeaderContentType, HeaderForm)
 	client := GetHTTPClient()
+
+	// external upstream metrics
+	start := time.Now()
+	defer func() {
+		updateExternalMetrics(req.URL.Host, start, resp, err)
+	}()
+
 	return httpDo(ctx, client, req, 1)
 }
 
 // HTTPDo is used for external service request, will print debug log of request
 func HTTPDo(ctx goctx.Context, req *http.Request) (resp *http.Response, err gopkg.CodeError) {
 	client := GetHTTPClient()
+
+	// external upstream metrics
+	start := time.Now()
+	defer func() {
+		updateExternalMetrics(req.URL.Host, start, resp, err)
+	}()
+
 	return httpDo(ctx, client, req, 1)
 }
 
 // HTTPDoGivenBody
 func HTTPDoGivenBody(ctx goctx.Context, req *http.Request, body []byte) (resp *http.Response, err gopkg.CodeError) {
 	client := GetHTTPClient()
+
+	// external upstream metrics
+	start := time.Now()
+	defer func() {
+		updateExternalMetrics(req.URL.Host, start, resp, err)
+	}()
+
 	return httpDoGivenBody(ctx, client, req, body, 1)
 }
 
@@ -145,24 +180,14 @@ func httpDo(ctx goctx.Context, client *http.Client, req *http.Request, skip int)
 		m800log.Info(ctx, "create inject span error:", errInject)
 	}
 	var errDo error
-	start := time.Now()
 	resp, errDo = client.Do(req)
 	if errDo != nil {
 		sp.SetTag("client.do.error", errDo)
 		ext.SamplingPriority.Set(sp, uint16(1))
+		ctx.Set(goctx.LogKeyWrapErrorCode, CodeHTTPDo)
 		LogDumpRequest(ctx, ErrorTraceLevel, req)
-		m800log.Errorf(ctx, "[HTTP Do] error: %s", errDo)
-		return nil, gopkg.NewCodeError(CodeHTTPDo, errDo.Error())
+		return nil, gopkg.NewWrappedCodeError(0, "", gopkg.NewCodeError(CodeHTTPDo, errDo.Error()))
 	}
-	respCode := getResponseMetricCode(resp)
-	upstreamCounter.With(prometheus.Labels{
-		labelCode: respCode,
-		labelHost: req.URL.Host,
-	}).Inc()
-	upstreamDuration.With(prometheus.Labels{
-		labelCode: respCode,
-		labelHost: req.URL.Host,
-	}).Observe(time.Since(start).Seconds())
 	return resp, nil
 }
 
@@ -170,13 +195,14 @@ func m800DoPostProcessing(ctx goctx.Context, httpResp *http.Response) (result *J
 	// should not get this nil http resp
 	if httpResp == nil {
 		m800log.Error(ctx, "[M800Do] got nil http response with no error")
-		return nil, gopkg.NewCodeError(CodeBadHTTPResponse, "nil response")
+		return nil, gopkg.NewWrappedCodeError(0, "", gopkg.NewCodeError(CodeBadHTTPResponse, "nil response"))
 	}
 
 	respPrinted := logDumpResponsePrinted(ctx, logrus.DebugLevel, httpResp, false)
 	body, err := ReadFromReadCloser(httpResp.Body)
 	if err != nil {
 		ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+		ctx.Set(goctx.LogKeyWrapErrorCode, err.ErrorCode())
 		_ = logDumpResponsePrinted(ctx, ErrorTraceLevel, httpResp, respPrinted)
 		return nil, err
 	}
@@ -186,14 +212,16 @@ func m800DoPostProcessing(ctx goctx.Context, httpResp *http.Response) (result *J
 	err = ParseJSON(ctx, body, result)
 	if err != nil {
 		ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+		ctx.Set(goctx.LogKeyWrapErrorCode, err.ErrorCode())
 		_ = logDumpResponseGivenBodyPrinted(ctx, ErrorTraceLevel, httpResp, body, respPrinted)
 		return result, err
 	}
 
 	if result.Code != 0 {
 		ctx.Set(goctx.LogKeyErrorCode, result.Code)
+		ctx.Set(goctx.LogKeyWrapErrorCode, result.Code)
 		_ = logDumpResponseGivenBodyPrinted(ctx, ErrorTraceLevel, httpResp, body, respPrinted)
-		return result, gopkg.NewCodeError(result.Code, result.Message)
+		return result, gopkg.NewWrappedCodeError(0, "", gopkg.NewCodeError(result.Code, result.Message))
 	}
 	return result, nil
 }

@@ -177,7 +177,12 @@ func AccessMiddleware(timeout time.Duration, localNamespace string, opts ...*Log
 		ctx.Set(goctx.LogKeyHTTPMethod, c.Request.Method)
 		ctx.Set(goctx.LogKeyURI, c.Request.URL.RequestURI())
 		// init if no cid
-		cid, _ := ctx.GetCID()
+		cid, ok := ctx.GetString(goctx.LogKeyCID)
+		if !ok {
+			cid, _ = ctx.GetCID()
+			c.Request.Header.Set(goctx.HTTPHeaderCID, cid)
+		}
+
 		start := time.Now().UTC()
 		defer m800log.Access(ctx, start)
 

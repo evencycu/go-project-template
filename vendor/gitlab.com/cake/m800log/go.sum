@@ -15,7 +15,7 @@ github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
-gitlab.com/cake/goctx v1.4.2 h1:Zwbo06Ex+PrtPppffV0nQPrBVniFO54n9rja1f/76+8=
-gitlab.com/cake/goctx v1.4.2/go.mod h1:6V51OE/m27AT8bthzchO/NvCaWQpy4qthE82zhWLufs=
+gitlab.com/cake/goctx v1.5.2 h1:GF9TytNg+EGMTFFs69PB6xqT46yexaxWgo2LXMSDkbw=
+gitlab.com/cake/goctx v1.5.2/go.mod h1:eoYB+b23ZLnuzfRlSj9uZqP0rPGrwBVHef2NUhaZZvs=
 golang.org/x/sys v0.0.0-20190422165155-953cdadca894 h1:Cz4ceDQGXuKRnVBDTS23GTn/pU5OE2C0WrNTOYK1Uuc=
 golang.org/x/sys v0.0.0-20190422165155-953cdadca894/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
