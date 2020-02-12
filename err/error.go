@@ -28,7 +28,7 @@ func randomErr(c *gin.Context) {
 		intercom.GinError(c, gopkg.NewWrappedCarrierCodeError(gpt.CodeForbidden, "permission error", err))
 		return
 	} else if ok := errors.As(err, &sessionError{}); ok && errors.Is(err, ErrClosed) {
-		intercom.GinError(c, gopkg.NewWrappedCarrierCodeError(gpt.CodeForbidden, "network error", err))
+		intercom.GinError(c, gopkg.NewWrappedCarrierCodeError(gpt.CodeInternalServerError, "network error", err))
 		return
 	}
 
