@@ -9,9 +9,9 @@ import (
 var (
 	letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 
-	causeList = []string{"network", "format", "resource"}
+	causeList = []string{"format", "resource", "bad luck"}
 
-	constCodeErr   = gopkg.NewCarrierCodeError(9996666, "const error")
+	constCodeErr   = gopkg.NewCarrierCodeError(7771111, "const error")
 	getErrFuncList = []func() error{
 		randomSessionErr,
 		randomNumberErr,
@@ -28,11 +28,15 @@ func randStringRunes(n int) string {
 }
 
 func randomSessionErr() error {
-	return sessionError{
-		cause:   causeList[rand.Intn(len(causeList))],
-		session: randStringRunes(10),
-		err:     sessionErrList[rand.Intn(len(sessionErrList))],
-	}
+	return gopkg.NewWrappedCarrierCodeError(
+		8881111,
+		"session error",
+		sessionError{
+			cause:   causeList[rand.Intn(len(causeList))],
+			session: randStringRunes(10),
+			err:     sessionErrList[rand.Intn(len(sessionErrList))],
+		},
+	)
 }
 
 func randomNumberErr() error {

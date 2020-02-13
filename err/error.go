@@ -21,18 +21,22 @@ func randomErr(c *gin.Context) {
 	err := genErr()
 	m800log.Errorf(ctx, "[%s] error occurs: %s", handlerName, err)
 
-	if ok := errors.As(err, &numberError{}); ok && (errors.Is(err, ErrTooLarge) || errors.Is(err, ErrTooSmall)) {
-		intercom.GinError(c, gopkg.NewWrappedCarrierCodeError(gpt.CodeBadRequest, "request error", err))
-		return
-	} else if ok := errors.As(err, &sessionError{}); ok && errors.Is(err, ErrPermission) {
-		intercom.GinError(c, gopkg.NewWrappedCarrierCodeError(gpt.CodeForbidden, "permission error", err))
-		return
-	} else if ok := errors.As(err, &sessionError{}); ok && errors.Is(err, ErrClosed) {
-		intercom.GinError(c, gopkg.NewWrappedCarrierCodeError(gpt.CodeInternalServerError, "network error", err))
-		return
-	}
+	var codeErr gopkg.CodeError
+	defer func() {
+		// in order to show log format
+		m800log.Errorf(ctx, "[%s] final error: %s", handlerName, codeErr)
+		intercom.GinError(c, codeErr)
+	}()
 
-	intercom.GinError(c, gopkg.NewWrappedCarrierCodeError(gpt.CodeInternalServerError, "database is burning", err))
+	if ok := errors.As(err, &numberError{}); ok && (errors.Is(err, ErrTooLarge) || errors.Is(err, ErrTooSmall)) {
+		codeErr = gopkg.NewWrappedCarrierCodeError(gpt.CodeBadRequest, "request error", err)
+	} else if ok := errors.As(err, &sessionError{}); ok && errors.Is(err, ErrPermission) {
+		codeErr = gopkg.NewWrappedCarrierCodeError(gpt.CodeForbidden, "permission error", err)
+	} else if ok := errors.As(err, &sessionError{}); ok && errors.Is(err, ErrClosed) {
+		codeErr = gopkg.NewWrappedCarrierCodeError(gpt.CodeInternalServerError, "network error", err)
+	} else {
+		codeErr = gopkg.NewWrappedCarrierCodeError(gpt.CodeInternalServerError, "database is burning", err)
+	}
 	return
 }
 
