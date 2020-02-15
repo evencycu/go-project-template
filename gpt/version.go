@@ -9,6 +9,7 @@ var (
 	appName = "template"
 	// version used for log and info
 	appVersion = "unknown"
+	gover      = runtime.Version()
 	goos       = runtime.GOOS
 	goarch     = runtime.GOARCH
 	gitBranch  = "master"
@@ -16,7 +17,7 @@ var (
 	buildDate  = "1970-01-01T00:00:00Z" // build date in ISO8601 format, output of $(date -u +'%Y-%m-%dT%H:%M:%SZ')
 )
 
-type version struct {
+type Version struct {
 	// Version is a binary version from git tag.
 	Version string `json:"version"`
 	// GitCommit is a git commit
@@ -29,17 +30,20 @@ type version struct {
 	GoOs string `json:"goOs"`
 	// GoArch holds architecture name.
 	GoArch string `json:"goArch"`
+	// GoVer holds Golang build version.
+	GoVer string `json:"goVer"`
 }
 
-// getVersion returns version.
-func GetVersion() version {
-	return version{
+// GetVersion returns version details.
+func GetVersion() Version {
+	return Version{
 		appVersion,
 		gitCommit,
 		gitBranch,
 		buildDate,
 		goos,
 		goarch,
+		gover,
 	}
 }
 
