@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"runtime"
 	"strings"
 	"time"
 
@@ -24,19 +23,11 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 )
 
-type options struct {
-	version    bool
-	prof       bool
-	configFile string
-}
-
-var opts options
+var configFile string
 var systemCtx goctx.Context
 
 func init() {
-	flag.BoolVar(&opts.version, "build", false, "GoLang build version.")
-	flag.BoolVar(&opts.prof, "prof", false, "GoLang profiling function.")
-	flag.StringVar(&opts.configFile, "config", "./local.toml", "Path to Config File")
+	flag.StringVar(&configFile, "config", "./local.toml", "Path to Config File")
 
 	systemCtx = goctx.Background()
 }
@@ -48,22 +39,21 @@ func main() {
 	}
 
 	flag.Parse()
-	if opts.version {
-		fmt.Fprintf(os.Stderr, "%s\n", runtime.Version())
-	}
-	if opts.prof {
-		ActivateProfile()
-	}
-	viper.AutomaticEnv()
-	viper.SetConfigFile(opts.configFile)
-	viper.ReadInConfig() // Find and read the config file
-	log.SetFlags(log.LstdFlags)
 
-	// Init log
+	viper.AutomaticEnv()
+	viper.SetConfigFile(configFile)
+	viper.ReadInConfig() // Find and read the config file
+
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
-	var err error
-	err = m800log.Initialize(viper.GetString("log.output"), viper.GetString("log.level"))
+
+	if viper.GetBool("app.prof") {
+		ActivateProfile()
+	}
+
+	// Init log
+	log.SetFlags(log.LstdFlags)
+	err := m800log.Initialize(viper.GetString("log.output"), viper.GetString("log.level"))
 	if err != nil {
 		panic(err)
 	}
@@ -79,8 +69,8 @@ func main() {
 	}
 
 	httpServer := apiserver.InitGinServer(systemCtx)
-	// Init mongo
 
+	// Init mongo
 	// if connect to multi mongodb cluster, take this pool to use
 
 	// pool, err = mgopool.NewSessionPool(getXXXMongoDBInfo())

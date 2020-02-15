@@ -1,5 +1,6 @@
 [app]
   namespace = "dev-hk-03"
+  prof = false
 
 [http]
   port = "8999"
