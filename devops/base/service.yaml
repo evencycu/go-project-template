@@ -8,4 +8,4 @@ spec:
     port: 8999
     protocol: TCP
     targetPort: api-port
-  type: NodePort
+  type: ClusterIP
