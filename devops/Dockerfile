@@ -22,4 +22,4 @@ FROM alpine:3.9
 RUN apk --no-cache add ca-certificates
 COPY --from=builder /go/bin/go-project-template .
 COPY local.toml .
-CMD ./go-project-template -config local.toml
+CMD ./go-project-template server -config local.toml

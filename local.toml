@@ -26,6 +26,20 @@
   flush_interval = "10s"
   log_spans = false
 
+[kafka]
+  bootstrap_servers = "dev-hk-db62.cloud.maaii.local:9092,dev-hk-db63.cloud.maaii.local:9092,dev-hk-db64.cloud.maaii.local:9092"
+  security_protocol = "sasl_ssl"
+  ssl_ca_location = "devkafkaca.crt"
+  sasl_mechanism = "PLAIN"
+  sasl_username = "lcc5"
+  sasl_password = "kafka-lcc5"
+  # producer
+  go_batch_producer = false
+  events_channel_size = 1048576
+  produce_channel_size = 1048576
+  enable_idempotence = true
+  acks = -1
+
 [database]
 [database.mgo]
   name = "Dev"
@@ -39,3 +53,13 @@
   secondary = false
   mongos = false
   hosts = "192.168.118.173:27017"
+
+[database.redis]
+  host = "172.30.3.146:26379;172.30.3.36:26379;172.30.3.161:26379"
+  master = "lcc5-hk-dev-master"
+  connect_timeout = "5s"
+  max_idle = 3
+  max_active = 20
+  idle_timeout = "180s"
+  password = "fXC7tLD57bGRYDVM"
+  sentinel_password = "nm2ZWZrLQ9F8Sw2N"

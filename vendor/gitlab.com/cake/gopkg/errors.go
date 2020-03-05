@@ -76,8 +76,12 @@ func (cde CarrierCodeError) ErrorMsg() string {
 
 // Error - return formatted error code and error message
 func (cde CarrierCodeError) Error() string {
-	if cde.ErrMsg == "" {
-		return cde.WrapErr.Error()
+	emptyString := ""
+	if cde.ErrMsg == emptyString {
+		if cde.WrapErr != nil {
+			return cde.WrapErr.Error()
+		}
+		return emptyString
 	}
 	if cde.WrapErr != nil {
 		return fmt.Sprintf("%07d %s: %v", cde.ErrCode, cde.ErrMsg, cde.WrapErr)

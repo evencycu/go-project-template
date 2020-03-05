@@ -6,7 +6,7 @@ import (
 
 var (
 	// appName is the service name for log
-	appName = "template"
+	appName = "go-project-template"
 	// version used for log and info
 	appVersion = "unknown"
 	gover      = runtime.Version()

@@ -7,9 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	ginprometheus "gitlab.com/cake/gin-prometheus"
-	new_err "gitlab.com/cake/go-project-template/err"
 	"gitlab.com/cake/go-project-template/gpt"
-	"gitlab.com/cake/go-project-template/metric_api"
+	"gitlab.com/cake/sms-entry/se"
+
+	new_err "gitlab.com/cake/go-project-template/examples/err"
+	"gitlab.com/cake/go-project-template/examples/metric_api"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/intercom"
 	"gitlab.com/cake/m800log"
@@ -20,35 +22,13 @@ var (
 	metricSystem = "gin"
 )
 
-func InitGinServer(ctx goctx.Context) *http.Server {
-	// Create gin http server.
-	gin.SetMode(viper.GetString("http.mode"))
-	router := gin.New()
-	router.Use(intercom.M800Recovery(gpt.CodeInternalServerError))
+func InitGinServer(ctx goctx.Context) (*http.Server, error) {
+	m800log.Infof(ctx, "[api server] init gin")
 
-	// Add gin prometheus metrics
-	p, err := ginprometheus.NewPrometheus(metricSystem,
-		ginprometheus.HistogramMetrics(metricSystem, ginprometheus.DefaultDurationBucket, ginprometheus.DefaultSizeBucket),
-		ginprometheus.HistogramHandleFunc())
+	router, err := GinRouter()
 	if err != nil {
-		panic("gin prometheus init error:" + err.Error())
+		return nil, err
 	}
-	p.Use(router)
-
-	// general service for debugging
-	router.GET("/health", health)
-	router.GET("/version", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gpt.GetVersion())
-	})
-	router.GET("/config", appConfig)
-	router.GET("/mongo", mongoInfo)
-	router.GET("/ready", ready)
-
-	rootGroup := router.Group("")
-
-	// Add application API
-	new_err.AddErrorEndpoint(rootGroup)
-	metric_api.AddMetricEndpoint(rootGroup)
 
 	port := viper.GetString("http.port")
 	httpServer := &http.Server{
@@ -65,7 +45,41 @@ func InitGinServer(ctx goctx.Context) *http.Server {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
-	return httpServer
+	return httpServer, nil
+}
+
+func GinRouter() (*gin.Engine, error) {
+	gin.SetMode(viper.GetString("http.mode"))
+	router := gin.New()
+	router.Use(intercom.M800Recovery(se.CodeInternalServerError))
+
+	// Add gin prometheus metrics
+	p, err := ginprometheus.NewPrometheus(metricSystem,
+		ginprometheus.HistogramMetrics(metricSystem, ginprometheus.DefaultDurationBucket, ginprometheus.DefaultSizeBucket),
+		ginprometheus.HistogramHandleFunc())
+	if err != nil {
+		return nil, err
+	}
+	p.Use(router)
+	router.NoRoute(intercom.NoRouteHandler(se.CodeRouteNotFound))
+
+	// Init root router group
+	rootGroup := router.Group("")
+
+	// general service for debugging
+	rootGroup.GET("/config", appConfig)
+	rootGroup.GET("/health", health)
+	rootGroup.GET("/ready", ready)
+	rootGroup.GET("/mongo", mongo)
+	rootGroup.GET("/version", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gpt.GetVersion())
+	})
+
+	// Add application API
+	new_err.AddErrorEndpoint(rootGroup)
+	metric_api.AddMetricEndpoint(rootGroup)
+
+	return router, nil
 }
 
 func mongoInfo(c *gin.Context) {
@@ -114,4 +128,19 @@ func ready(c *gin.Context) {
 	response["code"] = 0
 	response["result"] = result
 	c.JSON(code, response)
+}
+
+func mongo(c *gin.Context) {
+	if mgopool.IsNil() {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+	status := map[string]interface{}{}
+	status["Len"] = mgopool.Len()
+	status["IsAvailable"] = mgopool.IsAvailable()
+	status["Cap"] = mgopool.Cap()
+	status["Mode"] = mgopool.Mode()
+	status["Config"] = mgopool.ShowConfig()
+	status["LiveServers"] = mgopool.LiveServers()
+	c.JSON(http.StatusOK, status)
 }
