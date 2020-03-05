@@ -1,9 +1,9 @@
-# Template
+# Go Project Template
 
 ## M800 Libraries
 
 * `gitlab.com/cake/goctx`
-* `gitlab.com/cake/gotrace`
+* `gitlab.com/cake/gotrace/v2`
 * `gitlab.com/cake/m800log`
 * `gitlab.com/cake/mgopool`
 
@@ -22,6 +22,23 @@
 * metric (gin-prometheus)
 * mongodb (mgopool, high-level wrapper of mgo)
 
-## CICD integration
+## How to create a new project
 
-* make sure all the variable config in different region patch in `app-configuration`
+1. Copy necessary files
+
+    ```shell
+    $ ./copy.sh ../my_project
+    copy completed
+    ```
+
+2. Change project name
+
+    replace all `go-project-template` string to `my_project` in all files
+
+3. Change the project info package `gpt`  into your project alias name
+
+    ```shell
+    $ mv gpt mp
+    ```
+
+    replace all `gpt` string to `mp` in all files

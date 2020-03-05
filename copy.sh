@@ -23,3 +23,5 @@ for i in "${copy_list[@]}"
 do
 	cp -r $i $1
 done
+
+echo "Copy completed"
