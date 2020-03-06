@@ -8,10 +8,9 @@ import (
 	"github.com/spf13/viper"
 	ginprometheus "gitlab.com/cake/gin-prometheus"
 	"gitlab.com/cake/go-project-template/gpt"
-	"gitlab.com/cake/sms-entry/se"
 
-	new_err "gitlab.com/cake/go-project-template/examples/err"
-	"gitlab.com/cake/go-project-template/examples/metric_api"
+	// new_err "gitlab.com/cake/go-project-template/examples/err"
+	// "gitlab.com/cake/go-project-template/examples/metric_api"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/intercom"
 	"gitlab.com/cake/m800log"
@@ -51,7 +50,7 @@ func InitGinServer(ctx goctx.Context) (*http.Server, error) {
 func GinRouter() (*gin.Engine, error) {
 	gin.SetMode(viper.GetString("http.mode"))
 	router := gin.New()
-	router.Use(intercom.M800Recovery(se.CodeInternalServerError))
+	router.Use(intercom.M800Recovery(gpt.CodeInternalServerError))
 
 	// Add gin prometheus metrics
 	p, err := ginprometheus.NewPrometheus(metricSystem,
@@ -61,7 +60,7 @@ func GinRouter() (*gin.Engine, error) {
 		return nil, err
 	}
 	p.Use(router)
-	router.NoRoute(intercom.NoRouteHandler(se.CodeRouteNotFound))
+	router.NoRoute(intercom.NoRouteHandler(gpt.CodeRouteNotFound))
 
 	// Init root router group
 	rootGroup := router.Group("")

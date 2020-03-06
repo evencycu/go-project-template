@@ -8,6 +8,7 @@ import (
 
 const (
 	CodeInternalServerError = 9990000
+	CodeRouteNotFound       = 9991000
 
 	CodeBadRequest = 9990001
 	CodeForbidden  = 9990002

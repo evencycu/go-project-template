@@ -21,9 +21,9 @@ import (
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool"
 	"gitlab.com/cake/redispool"
-	"gitlab.com/cake/sms-entry/se"
 
 	"gitlab.com/cake/go-project-template/apiserver"
+	"gitlab.com/cake/go-project-template/gpt"
 )
 
 var (
@@ -120,7 +120,7 @@ func initInfra(config string) error {
 		return err
 	}
 
-	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), se.GetAppName(), se.GetVersion().Version, se.GetPhaseEnv(), se.GetNamespace())
+	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), gpt.GetAppName(), gpt.GetVersion().Version, gpt.GetPhaseEnv(), gpt.GetNamespace())
 	_ = m800log.SetAccessLevel(viper.GetString("log.access_level"))
 	// Init tracer
 	err = initTracer()
@@ -146,7 +146,7 @@ func initTracer() error {
 		LogSpans:            viper.GetBool("jaeger.log_spans"),
 	}
 	log.Printf("Sampler Config:%+v\nReporterConfig:%+v\n", sConf, rConf)
-	if err := gotrace.InitJaeger(se.GetAppName(), sConf, rConf); err != nil {
+	if err := gotrace.InitJaeger(gpt.GetAppName(), sConf, rConf); err != nil {
 		return fmt.Errorf("init tracer error:%s", err.Error())
 	}
 	return nil

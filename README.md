@@ -37,8 +37,11 @@
 
 3. Change the project info package `gpt`  into your project alias name
 
-    ```shell
-    $ mv gpt mp
-    ```
+    * change folder name
 
-    replace all `gpt` string to `mp` in all files
+      ```shell
+      $ mv gpt mp
+      ```
+
+    * replace all `gpt` string to `mp` in all files
+    * replace all error codes in `mp` by project error code. (register error code here: [Link](https://issuetracking.maaii.com:9443/pages/viewpage.action?pageId=88354121))  

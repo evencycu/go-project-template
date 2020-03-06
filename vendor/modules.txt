@@ -196,8 +196,6 @@ gitlab.com/cake/m800log
 gitlab.com/cake/mgopool
 # gitlab.com/cake/redispool v0.1.20
 gitlab.com/cake/redispool
-# gitlab.com/cake/sms-entry v0.2.22
-gitlab.com/cake/sms-entry/se
 # go.uber.org/atomic v1.4.0
 go.uber.org/atomic
 # golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914
