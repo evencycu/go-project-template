@@ -28,7 +28,7 @@
 
     ```shell
     $ ./copy.sh ../my_project
-    copy completed
+    Copy completed
     ```
 
 2. Change project name

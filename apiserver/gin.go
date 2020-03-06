@@ -76,8 +76,8 @@ func GinRouter() (*gin.Engine, error) {
 	})
 
 	// Add application API
-	new_err.AddErrorEndpoint(rootGroup)
-	metric_api.AddMetricEndpoint(rootGroup)
+	// new_err.AddErrorEndpoint(rootGroup)
+	// metric_api.AddMetricEndpoint(rootGroup)
 
 	return router, nil
 }
