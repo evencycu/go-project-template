@@ -1,5 +1,5 @@
 APP=go-project-template
-PKGPATH=gitlab.com/cake/go-project-template/gpt
+PKGPATH=gitlab.com/cake/gopkg
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
@@ -22,7 +22,7 @@ BLUEPRINT_PATH=blueprint/$(APP).apib
 export GOPRIVATE=gitlab.com*
 
 build:
-	go install -i -v -ldflags "-s -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE) 
+	go install -i -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
 
 run: build
 	$(GOPATH)/bin/$(APP) server --config $(CONF)

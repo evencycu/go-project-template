@@ -26,8 +26,8 @@ const (
 )
 
 var (
-	// 0.1 0.2 0.4 0.8 1.6 3.2 6.4
-	DefaultDurationBucket = prometheus.ExponentialBuckets(0.1, 2, 7)
+	// 0.1 0.2 0.4 0.8 1.6 3.2 6.4 12.8 25.6 51.2
+	DefaultDurationBucket = prometheus.ExponentialBuckets(0.1, 2, 10)
 
 	// 100 200 400 800 1600
 	DefaultSizeBucket = prometheus.ExponentialBuckets(100, 2, 5)

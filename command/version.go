@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"gitlab.com/cake/go-project-template/gpt"
+
+	"gitlab.com/cake/gopkg"
 )
 
 func NewVersionCmd() *cobra.Command {
@@ -13,7 +14,7 @@ func NewVersionCmd() *cobra.Command {
 		Short: "Print the version number of Hugo",
 		Long:  `All software has versions. This is Hugo's`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("%+v\n", gpt.GetVersion())
+			fmt.Printf("%+v\n", gopkg.GetVersion())
 		},
 	}
 	return c

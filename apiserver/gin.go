@@ -6,15 +6,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+
 	ginprometheus "gitlab.com/cake/gin-prometheus"
 	"gitlab.com/cake/go-project-template/gpt"
-
-	// new_err "gitlab.com/cake/go-project-template/examples/err"
-	// "gitlab.com/cake/go-project-template/examples/metric_api"
 	"gitlab.com/cake/goctx"
+	"gitlab.com/cake/gopkg"
 	"gitlab.com/cake/intercom"
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool"
+	// new_err "gitlab.com/cake/go-project-template/examples/err"
+	// "gitlab.com/cake/go-project-template/examples/metric_api"
 )
 
 var (
@@ -70,9 +71,7 @@ func GinRouter() (*gin.Engine, error) {
 	rootGroup.GET("/health", health)
 	rootGroup.GET("/ready", ready)
 	rootGroup.GET("/mongo", mongo)
-	rootGroup.GET("/version", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gpt.GetVersion())
-	})
+	rootGroup.GET("/version", version)
 
 	// Add application API
 	// new_err.AddErrorEndpoint(rootGroup)
@@ -142,4 +141,8 @@ func mongo(c *gin.Context) {
 	status["Config"] = mgopool.ShowConfig()
 	status["LiveServers"] = mgopool.LiveServers()
 	c.JSON(http.StatusOK, status)
+}
+
+func version(c *gin.Context) {
+	c.JSON(http.StatusOK, gopkg.GetVersion())
 }

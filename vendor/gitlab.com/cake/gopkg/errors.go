@@ -91,7 +91,7 @@ func (cde CarrierCodeError) Error() string {
 
 // FullError - return formatted error code and error message
 func (cde CarrierCodeError) FullError() string {
-	return fmt.Sprintf("%07d %s", cde.ErrCode, cde.ErrMsg)
+	return cde.Error()
 }
 
 // WrappedError - return wrappedError

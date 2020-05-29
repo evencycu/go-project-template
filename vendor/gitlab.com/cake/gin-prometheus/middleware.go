@@ -1,7 +1,6 @@
 package ginmetrics
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -124,7 +123,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeCounter:
 			opts, ok := metric.Opts.(prometheus.CounterOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.Cnt[key] = prometheus.NewCounter(opts)
 			err = prometheus.Register(p.Cnt[key])
@@ -135,7 +134,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeCounterVec:
 			opts, ok := metric.Opts.(prometheus.CounterOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.CntVec[key] = prometheus.NewCounterVec(opts, metric.Args)
 			err = prometheus.Register(p.CntVec[key])
@@ -146,7 +145,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeGauge:
 			opts, ok := metric.Opts.(prometheus.GaugeOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.Gauge[key] = prometheus.NewGauge(opts)
 			err = prometheus.Register(p.Gauge[key])
@@ -157,7 +156,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeGaugeVec:
 			opts, ok := metric.Opts.(prometheus.GaugeOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.GaugeVec[key] = prometheus.NewGaugeVec(opts, metric.Args)
 			err = prometheus.Register(p.GaugeVec[key])
@@ -168,7 +167,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeHistogram:
 			opts, ok := metric.Opts.(prometheus.HistogramOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.Histogram[key] = prometheus.NewHistogram(opts)
 			err = prometheus.Register(p.Histogram[key])
@@ -179,7 +178,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeHistogramVec:
 			opts, ok := metric.Opts.(prometheus.HistogramOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.HistogramVec[key] = prometheus.NewHistogramVec(opts, metric.Args)
 			err = prometheus.Register(p.HistogramVec[key])
@@ -190,7 +189,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeSummary:
 			opts, ok := metric.Opts.(prometheus.SummaryOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.Summary[key] = prometheus.NewSummary(opts)
 			err = prometheus.Register(p.Summary[key])
@@ -201,7 +200,7 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 		case TypeSummaryVec:
 			opts, ok := metric.Opts.(prometheus.SummaryOpts)
 			if !ok {
-				return errors.New(fmt.Sprintf(strAssert, key, metric.Type))
+				return fmt.Errorf(strAssert, key, metric.Type)
 			}
 			p.SummaryVec[key] = prometheus.NewSummaryVec(opts, metric.Args)
 			err = prometheus.Register(p.SummaryVec[key])
@@ -209,7 +208,6 @@ func (p *GinPrometheus) registerMetrics() (err error) {
 				return
 			}
 		}
-
 	}
 	return
 }
@@ -252,9 +250,10 @@ func (p *GinPrometheus) DefaultHandleFunc() gin.HandlerFunc {
 		}
 
 		var status string
+		var handlerName string
 
 		timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
-			p.SummaryVec[KeyReqDur].WithLabelValues(status, c.Request.Method, c.HandlerName()).Observe(v)
+			p.SummaryVec[KeyReqDur].WithLabelValues(status, c.Request.Method, handlerName).Observe(v)
 		}))
 		defer timer.ObserveDuration()
 
@@ -274,11 +273,12 @@ func (p *GinPrometheus) DefaultHandleFunc() gin.HandlerFunc {
 		default: // Informational.
 			status = strconv.Itoa(c.Writer.Status())
 		}
+		handlerName = c.HandlerName()
 		resSz := float64(c.Writer.Size())
 
-		p.CntVec[KeyReqCnt].WithLabelValues(status, c.Request.Method, c.HandlerName()).Inc()
-		p.SummaryVec[KeyReqSz].WithLabelValues(status, c.Request.Method, c.HandlerName()).Observe(float64(reqSz))
-		p.SummaryVec[KeyResSz].WithLabelValues(status, c.Request.Method, c.HandlerName()).Observe(resSz)
+		p.CntVec[KeyReqCnt].WithLabelValues(status, c.Request.Method, handlerName).Inc()
+		p.SummaryVec[KeyReqSz].WithLabelValues(status, c.Request.Method, handlerName).Observe(float64(reqSz))
+		p.SummaryVec[KeyResSz].WithLabelValues(status, c.Request.Method, handlerName).Observe(resSz)
 	}
 }
 
