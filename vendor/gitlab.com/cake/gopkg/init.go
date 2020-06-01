@@ -24,13 +24,13 @@ func NewBuildInfoCollector() *prometheus.GaugeVec {
 			Name: "go_build_info",
 			Help: "Build information about the main Go module.",
 		},
-		[]string{"path", "version"},
+		[]string{"path", "version", "revision"},
 	)
 	if !ok {
 		return gauge
 	}
 
-	gauge.WithLabelValues(buildInfo.Main.Path, appVersion).Set(1)
+	gauge.WithLabelValues(buildInfo.Main.Path, appVersion, gitCommit).Set(1)
 
 	return gauge
 }

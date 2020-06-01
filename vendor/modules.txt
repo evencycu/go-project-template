@@ -191,7 +191,7 @@ github.com/ugorji/go/codec
 gitlab.com/cake/gin-prometheus
 # gitlab.com/cake/goctx v1.5.2
 gitlab.com/cake/goctx
-# gitlab.com/cake/gopkg v1.4.3
+# gitlab.com/cake/gopkg v1.4.4
 gitlab.com/cake/gopkg
 # gitlab.com/cake/gotrace v1.3.5
 gitlab.com/cake/gotrace

@@ -18,7 +18,7 @@ require (
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	gitlab.com/cake/gin-prometheus v1.1.4
 	gitlab.com/cake/goctx v1.5.2
-	gitlab.com/cake/gopkg v1.4.3
+	gitlab.com/cake/gopkg v1.4.4
 	gitlab.com/cake/gotrace v1.3.5
 	gitlab.com/cake/intercom v0.8.6
 	gitlab.com/cake/m800log v1.4.6
