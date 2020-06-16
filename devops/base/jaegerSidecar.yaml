@@ -1,20 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: your-service-name
+  name: go-project-template
 spec:
   template:
     spec:
       containers:
         - name: jaeger-agent
-          image: "artifactory.devops.maaii.com/k8s-docker-local/jaegertracing/jaeger-agent:1.11.0"
+          image: "artifactory.devops.maaii.com/k8s-docker-local/jaegertracing/jaeger-agent:1.18.0"
           ports:
           - containerPort: 6831
             protocol: UDP
           - containerPort: 6832
             protocol: UDP
+          - containerPort: 14271 
+            protocol: TCP
+            name: jaeger-http
           env:
-          - name: REPORTER_TYPE
-            value: "tchannel"
-          - name: REPORTER_TCHANNEL_HOST_PORT
+          - name: REPORTER_GRPC_HOST_PORT
             value: "jaeger-collector:14267"
