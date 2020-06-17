@@ -18,4 +18,4 @@ spec:
             name: jaeger-http
           env:
           - name: REPORTER_GRPC_HOST_PORT
-            value: "jaeger-collector:14267"
+            value: "jaeger-collector:14250"
