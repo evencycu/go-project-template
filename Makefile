@@ -93,3 +93,9 @@ apibrun:
 sonarscan:
 	$(DEVOPSTOOL)/sonar-scanner-tools/local-scan.sh test $(PWD)
 	$(DEVOPSTOOL)/sonar-scanner-tools/local-scan.sh upload $(PWD)
+
+adrtoc:
+	adr generate toc > doc/adr/README.md
+
+adrview:
+	adr-viewer --serve
