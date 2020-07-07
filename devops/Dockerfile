@@ -1,5 +1,5 @@
 # docker build -t [image_name]:[tag] .
-FROM golang:1.11.6-alpine as builder
+FROM golang:1.13.7-alpine as builder
 WORKDIR /go/src/
 ENV GO111MODULE=on
 
