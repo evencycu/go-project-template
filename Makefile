@@ -48,7 +48,7 @@ modvendor:
 	GO111MODULE=on go mod vendor
 	
 dockerbuild: modvendor
-	docker build --build-arg GITVERSION=$(TAG) --build-arg GITREVISION=$(REVISION) --build-arg GITBRANCH=$(BR) -t $(DOCKERTAG) -f devops/Dockerfile .
+	docker build --build-arg APPNAME=$(APP) --build-arg GITVERSION=$(TAG) --build-arg GITREVISION=$(REVISION) --build-arg GITBRANCH=$(BR) -t $(DOCKERTAG) -f devops/Dockerfile .
 	
 docker: dockerbuild
 	docker run -p $(PORT):$(PORT) $(DOCKERTAG):latest 
