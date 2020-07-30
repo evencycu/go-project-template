@@ -1,5 +1,5 @@
 APP=go-project-template
-PKGPATH=gitlab.com/cake/gopkg
+PKGPATH=gitlab.com/cake/go-project-template
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml

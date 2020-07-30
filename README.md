@@ -26,25 +26,46 @@
 
 1. Copy necessary files
 
+    if your project is named my_go_project, you can alias your project name as mgp 
+
     ```shell
-    $ ./copy.sh ../my_project
+    $ ./copy.sh my_go_project mgp
     Copy completed
     ```
+    your project directory will be created on upper directory relative to this go-project-template
 
-2. Change project name
+    cd to your project directory
+    ```shell
+    $ git init
+    $ go mod vendor
+    ```
+    if you want to use kafka in your go project, you have to install librdkafka-dev if you are using Debian/Ubuntu
+    ```shell
+    $ sudo apt install librdkafka-dev
+    ```
+    if you don't use kafka in your project, remove kafka related content in go.mod and go.sum
 
-    replace all `go-project-template` string to `my_project` in all files
+    Then you should be able to make the binary
+    ```shell
+    $ make
+    ```
+    
+    The binary will be in your ~/go/bin directory
 
-3. Change the project info package `gpt`  into your project alias name
+    * replace all error codes in the project alias directory by project error code. (register error code here: [Link](https://issuetracking.maaii.com:9443/pages/viewpage.action?pageId=88354121))  
 
-    * change folder name
+    Note your default project directory will be in gitlab.com/cake/your_project_name
+    Make sure this is the correct project path, if not, please change the path in all related files
+    For instance,
+    ```shell
+    find . -type f -exec sed -i'' -e "s/gitlab.com\/cake\/your_project_name/gitlab.com\/backend\/your_project_name/g" {} +
+    ```
+    If you are not sure the correct path, please consult your team lead.
 
-      ```shell
-      $ mv gpt mp
-      ```
-
-    * replace all `gpt` string to `mp` in all files
-    * replace all error codes in `mp` by project error code. (register error code here: [Link](https://issuetracking.maaii.com:9443/pages/viewpage.action?pageId=88354121))  
+    if you want to deploy your project in k8s, please review the devops directory. 
+    in devops/base/deployment.yaml, make sure the following is correct 
+    image: artifactory.maaii.com/lc-docker-local/george-project:latest 
+    please talk to devops team for the correct path and help your to setup CI/CD pipeline for your application
 
 ## How to write Architecture Decision Records
 
