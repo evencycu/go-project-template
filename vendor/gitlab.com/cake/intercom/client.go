@@ -22,11 +22,12 @@ import (
 
 var (
 	intercomClient *IntercomClient
+	tr             *http.Transport
 )
 
 func init() {
 	defaultTimeout := 30 * time.Second
-	tr := &http.Transport{
+	tr = &http.Transport{
 		DialContext: conntrack.NewDialContextFunc(
 			conntrack.DialWithName("intercom"),
 		),
@@ -119,7 +120,9 @@ func httpDo(ctx goctx.Context, client *http.Client, req *http.Request, skip int)
 	// FIXME: performance issue here if use runtime...?
 	sp := gotrace.CreateChildOfSpan(ctx, callerName)
 	defer sp.Finish()
-
+	if AppName != "" {
+		req.Header.Add(goctx.HTTPHeaderInternalCaller, AppName)
+	}
 	gotrace.AttachHttpTags(sp, tags)
 	errInject := gotrace.InjectSpan(sp, req.Header)
 	if errInject != nil {
@@ -128,6 +131,7 @@ func httpDo(ctx goctx.Context, client *http.Client, req *http.Request, skip int)
 	var errDo error
 	resp, errDo = client.Do(req)
 	if errDo != nil {
+		ext.Error.Set(sp, true)
 		sp.SetTag("client.do.error", errDo)
 		ext.SamplingPriority.Set(sp, uint16(1))
 		ctx.Set(goctx.LogKeyWrapErrorCode, CodeHTTPDo)
@@ -164,6 +168,9 @@ func m800DoPostProcessing(ctx goctx.Context, httpResp *http.Response) (result *J
 	}
 
 	if result.Code != 0 {
+		if result.Message == "" {
+			result.Message = MsgEmpty
+		}
 		ctx.Set(goctx.LogKeyErrorCode, result.Code)
 		ctx.Set(goctx.LogKeyWrapErrorCode, result.Code)
 		_ = logDumpResponseGivenBodyPrinted(ctx, ErrorTraceLevel, httpResp, body, respPrinted)
@@ -198,7 +205,7 @@ type IntercomClient struct {
 
 func NewIntercomClient(client *http.Client) (ic *IntercomClient) {
 	if client != nil {
-		ic = &IntercomClient{client}
+		ic = &IntercomClient{httpClient: client}
 	}
 	return
 }
@@ -209,6 +216,9 @@ func (ic *IntercomClient) SetHTTPClient(client *http.Client) {
 
 func (ic *IntercomClient) SetHTTPClientTimeout(to time.Duration) {
 	ic.httpClient.Timeout = to
+	if ic.httpClient.Transport != nil {
+		ic.httpClient.Transport.(*http.Transport).TLSHandshakeTimeout = to
+	}
 }
 
 func (ic *IntercomClient) GetHTTPClient() *http.Client {
@@ -233,7 +243,6 @@ func (ic *IntercomClient) M800Do(ctx goctx.Context, req *http.Request) (result *
 
 func (ic *IntercomClient) M800DoGivenBody(ctx goctx.Context, req *http.Request, body []byte) (result *JsonResponse, err gopkg.CodeError) {
 	client := ic.httpClient
-
 	// internal upstream metrics
 	start := time.Now()
 	defer func() {

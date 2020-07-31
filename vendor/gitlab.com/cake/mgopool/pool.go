@@ -233,7 +233,7 @@ func (p *Pool) get(ctx goctx.Context) (session *Session, err gopkg.CodeError) {
 	}
 
 	// prevent ping, no root span case
-	t := ctx.Get(goctx.LogKeyTrace)
+	t := ctx.GetSpan()
 	if t != nil {
 		sp := gotrace.CreateChildOfSpan(ctx, FuncPoolWaiting)
 		defer sp.Finish()
@@ -248,7 +248,7 @@ func (p *Pool) get(ctx goctx.Context) (session *Session, err gopkg.CodeError) {
 	case session = <-p.c:
 		p.wg.Add(1)
 	case <-ctx.Done():
-		err = gopkg.NewCarrierCodeError(APIFullResource, "mongo resource not enough:"+ctx.Err().Error())
+		err = gopkg.NewCarrierCodeError(ContextTimeout, "context timeout:"+ctx.Err().Error())
 		return
 	}
 	return

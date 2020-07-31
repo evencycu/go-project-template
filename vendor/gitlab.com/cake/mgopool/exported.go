@@ -7,7 +7,7 @@ import (
 	"gitlab.com/cake/gopkg"
 )
 
-var std *Pool
+var std = &Pool{}
 
 // Initialize init mongo instance
 func Initialize(dbi *DBInfo) (err error) {
@@ -105,8 +105,12 @@ func BulkDelete(ctx goctx.Context, dbName, collection string, documents []bson.M
 	return std.BulkDelete(ctx, dbName, collection, documents)
 }
 
-func GetBulk(ctx goctx.Context, dbName, collection string) (*Bulk, gopkg.CodeError) {
+func GetBulk(ctx goctx.Context, dbName, collection string) (MongoBulk, gopkg.CodeError) {
 	return std.GetBulk(ctx, dbName, collection)
+}
+
+func GetQuery(ctx goctx.Context, dbName, collection string, selector interface{}) (MongoQuery, gopkg.CodeError) {
+	return std.GetQuery(ctx, dbName, collection, selector)
 }
 
 func QueryCount(ctx goctx.Context, dbName, collection string, selector interface{}) (n int, err gopkg.CodeError) {
@@ -115,6 +119,10 @@ func QueryCount(ctx goctx.Context, dbName, collection string, selector interface
 
 func QueryAll(ctx goctx.Context, dbName, collection string, result, selector, fields interface{}, skip, limit int, sort ...string) (err gopkg.CodeError) {
 	return std.QueryAll(ctx, dbName, collection, result, selector, fields, skip, limit, sort...)
+}
+
+func QueryAllWithCollation(ctx goctx.Context, dbName, collection string, result, selector, fields interface{}, collation *mgo.Collation, skip, limit int, sort ...string) (err gopkg.CodeError) {
+	return std.QueryAllWithCollation(ctx, dbName, collection, result, selector, fields, collation, skip, limit, sort...)
 }
 
 func QueryOne(ctx goctx.Context, dbName, collection string, result, selector, fields interface{}, skip, limit int, sort ...string) (err gopkg.CodeError) {

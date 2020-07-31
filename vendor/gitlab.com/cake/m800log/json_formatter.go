@@ -43,7 +43,6 @@ func newM800JSONFormatter(timestampFormat, app, version, env, ns string) *M800JS
 
 // Format renders a single log entry
 func (f *M800JSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	delete(entry.Data, goctx.LogKeyTrace)
 	data := make(logrus.Fields, len(entry.Data)+BuildInFieldNumber)
 	for k, v := range entry.Data {
 		data[k] = v

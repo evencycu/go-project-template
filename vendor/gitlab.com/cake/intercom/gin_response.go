@@ -2,6 +2,7 @@ package intercom
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -10,6 +11,8 @@ import (
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gopkg"
 )
+
+var defaultHTTPErrorCode = http.StatusInternalServerError
 
 // Response defines the JSON RESTful response
 type Response struct {
@@ -65,6 +68,14 @@ var ErrorHttpStatusMapping = &ImmutableMap{
 	rwLock: sync.RWMutex{},
 }
 
+func SetDefaultHTTPErrorCode(httpCode int) error {
+	if ok := http.StatusText(httpCode); ok == "" {
+		return fmt.Errorf("invalid http code")
+	}
+	defaultHTTPErrorCode = httpCode
+	return nil
+}
+
 // GinOKResponse defines the interface of success response
 func GinOKResponse(c *gin.Context, result interface{}) {
 	response := Response{}
@@ -92,6 +103,7 @@ func GinAllResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
 	response.Message = err.ErrorMsg()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
@@ -102,6 +114,7 @@ func GinOKError(c *gin.Context, err gopkg.CodeError) {
 	response.Message = err.ErrorMsg()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
@@ -109,7 +122,7 @@ func GinOKError(c *gin.Context, err gopkg.CodeError) {
 func GinError(c *gin.Context, err gopkg.CodeError) {
 	status, ok := ErrorHttpStatusMapping.Get(err.ErrorCode())
 	if !ok {
-		status = http.StatusInternalServerError
+		status = defaultHTTPErrorCode
 	}
 
 	response := Response{
@@ -118,6 +131,7 @@ func GinError(c *gin.Context, err gopkg.CodeError) {
 		CID:     c.GetHeader(goctx.HTTPHeaderCID),
 	}
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(status, response)
 }
 
@@ -125,7 +139,7 @@ func GinError(c *gin.Context, err gopkg.CodeError) {
 func GinAllErrorResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
 	status, ok := ErrorHttpStatusMapping.Get(err.ErrorCode())
 	if !ok {
-		status = http.StatusInternalServerError
+		status = defaultHTTPErrorCode
 	}
 	response := Response{}
 	response.Result = result
@@ -133,6 +147,7 @@ func GinAllErrorResponse(c *gin.Context, result interface{}, err gopkg.CodeError
 	response.Message = err.ErrorMsg()
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
 	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(status, response)
 }
 
@@ -140,7 +155,7 @@ func GinAllErrorResponse(c *gin.Context, result interface{}, err gopkg.CodeError
 func GinErrorCodeMsg(c *gin.Context, code int, msg string) {
 	status, ok := ErrorHttpStatusMapping.Get(code)
 	if !ok {
-		status = http.StatusInternalServerError
+		status = defaultHTTPErrorCode
 	}
 
 	response := Response{
@@ -150,4 +165,27 @@ func GinErrorCodeMsg(c *gin.Context, code int, msg string) {
 	}
 	c.Set(goctx.LogKeyErrorCode, code)
 	c.AbortWithStatusJSON(status, response)
+}
+
+// GinErrorStatus return with the given HTTP status code, and error response
+func GinErrorStatus(c *gin.Context, status int, err gopkg.CodeError) {
+	response := Response{
+		Code:    err.ErrorCode(),
+		Message: err.ErrorMsg(),
+		CID:     c.GetHeader(goctx.HTTPHeaderCID),
+	}
+	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	setWrappedErrorCode(c, err)
+	c.AbortWithStatusJSON(status, response)
+}
+
+func setWrappedErrorCode(c *gin.Context, err gopkg.CodeError) {
+	var carrierErr gopkg.CarrierCodeError
+	if errors.As(err, &carrierErr) {
+		if wrapErr := carrierErr.Unwrap(); wrapErr != nil {
+			if errors.As(wrapErr, &carrierErr) {
+				c.Set(goctx.LogKeyWrapErrorCode, carrierErr.ErrorCode())
+			}
+		}
+	}
 }

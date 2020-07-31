@@ -15,6 +15,7 @@ github.com/cenkalti/backoff/v3
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
 # github.com/confluentinc/confluent-kafka-go v1.1.0
+## explicit
 github.com/confluentinc/confluent-kafka-go/kafka
 # github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6
 github.com/containerd/continuity/pathdriver
@@ -29,6 +30,7 @@ github.com/fsnotify/fsnotify
 # github.com/gin-contrib/sse v0.1.0
 github.com/gin-contrib/sse
 # github.com/gin-gonic/gin v1.6.3
+## explicit
 github.com/gin-gonic/gin
 github.com/gin-gonic/gin/binding
 github.com/gin-gonic/gin/internal/bytesconv
@@ -47,15 +49,14 @@ github.com/go-playground/locales/currency
 github.com/go-playground/universal-translator
 # github.com/go-playground/validator/v10 v10.2.0
 github.com/go-playground/validator/v10
-# github.com/gofrs/uuid v3.2.0+incompatible
-github.com/gofrs/uuid
-# github.com/golang/protobuf v1.4.0
+# github.com/golang/protobuf v1.4.2
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/gomodule/redigo v2.0.0+incompatible
+## explicit
 github.com/gomodule/redigo/internal
 github.com/gomodule/redigo/redis
 # github.com/hashicorp/hcl v1.0.0
@@ -73,9 +74,9 @@ github.com/hashicorp/hcl/json/token
 github.com/inconshreveable/mousetrap
 # github.com/jpillora/backoff v1.0.0
 github.com/jpillora/backoff
-# github.com/json-iterator/go v1.1.9
+# github.com/json-iterator/go v1.1.10
 github.com/json-iterator/go
-# github.com/konsorten/go-windows-terminal-sequences v1.0.2
+# github.com/konsorten/go-windows-terminal-sequences v1.0.3
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/leodido/go-urn v1.2.0
 github.com/leodido/go-urn
@@ -96,13 +97,14 @@ github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/opencontainers/runc v1.0.0-rc5
+# github.com/opencontainers/runc v1.0.0-rc9
 github.com/opencontainers/runc/libcontainer/user
 # github.com/opentracing/opentracing-go v1.1.0
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
-# github.com/ory/dockertest/v3 v3.5.2
+# github.com/ory/dockertest/v3 v3.5.5
+## explicit
 github.com/ory/dockertest/v3
 github.com/ory/dockertest/v3/docker
 github.com/ory/dockertest/v3/docker/opts
@@ -129,47 +131,55 @@ github.com/ory/dockertest/v3/docker/types/registry
 github.com/ory/dockertest/v3/docker/types/strslice
 github.com/ory/dockertest/v3/docker/types/versions
 # github.com/pelletier/go-toml v1.3.0
+## explicit
 github.com/pelletier/go-toml
-# github.com/pkg/errors v0.8.1
+# github.com/pkg/errors v0.9.1
 github.com/pkg/errors
 # github.com/povilasv/prommod v0.0.12
 github.com/povilasv/prommod
-# github.com/prometheus/client_golang v1.6.0
+# github.com/prometheus/client_golang v1.7.1
+## explicit
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.9.1
+# github.com/prometheus/common v0.10.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.0.11
+# github.com/prometheus/procfs v0.1.3
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/sirupsen/logrus v1.4.2
+# github.com/sirupsen/logrus v1.6.0
 github.com/sirupsen/logrus
 # github.com/spf13/afero v1.2.2
+## explicit
 github.com/spf13/afero
 github.com/spf13/afero/mem
 # github.com/spf13/cast v1.3.0
 github.com/spf13/cast
 # github.com/spf13/cobra v0.0.6
+## explicit
 github.com/spf13/cobra
 # github.com/spf13/jwalterweatherman v1.1.0
+## explicit
 github.com/spf13/jwalterweatherman
 # github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
 # github.com/spf13/viper v1.5.0
+## explicit
 github.com/spf13/viper
 # github.com/subosito/gotenv v1.2.0
 github.com/subosito/gotenv
-# github.com/uber/jaeger-client-go v2.20.1+incompatible
+# github.com/uber/jaeger-client-go v2.22.1+incompatible
+## explicit
 github.com/uber/jaeger-client-go
 github.com/uber/jaeger-client-go/config
 github.com/uber/jaeger-client-go/internal/baggage
 github.com/uber/jaeger-client-go/internal/baggage/remote
+github.com/uber/jaeger-client-go/internal/reporterstats
 github.com/uber/jaeger-client-go/internal/spanlog
 github.com/uber/jaeger-client-go/internal/throttler
 github.com/uber/jaeger-client-go/internal/throttler/remote
@@ -188,36 +198,45 @@ github.com/uber/jaeger-lib/metrics
 # github.com/ugorji/go/codec v1.1.7
 github.com/ugorji/go/codec
 # gitlab.com/cake/gin-prometheus v1.1.4
+## explicit
 gitlab.com/cake/gin-prometheus
-# gitlab.com/cake/goctx v1.5.2
+# gitlab.com/cake/goctx v1.6.10
+## explicit
 gitlab.com/cake/goctx
 # gitlab.com/cake/gopkg v1.4.4
+## explicit
 gitlab.com/cake/gopkg
 # gitlab.com/cake/gotrace v1.3.5
+## explicit
 gitlab.com/cake/gotrace
-# gitlab.com/cake/gotrace/v2 v2.0.1
+# gitlab.com/cake/gotrace/v2 v2.1.2
 gitlab.com/cake/gotrace/v2
-# gitlab.com/cake/intercom v0.8.6
+# gitlab.com/cake/intercom v0.9.14
+## explicit
 gitlab.com/cake/intercom
-# gitlab.com/cake/m800log v1.4.6
+# gitlab.com/cake/m800log v1.4.9
+## explicit
 gitlab.com/cake/m800log
-# gitlab.com/cake/mgopool v1.4.2
+# gitlab.com/cake/mgopool v1.5.4
+## explicit
 gitlab.com/cake/mgopool
 # gitlab.com/cake/redispool v0.1.20
+## explicit
 gitlab.com/cake/redispool
-# go.uber.org/atomic v1.4.0
+# go.uber.org/atomic v1.6.0
 go.uber.org/atomic
 # golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914
 golang.org/x/net/context
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f
+# golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
+golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.2
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# google.golang.org/protobuf v1.21.0
+# google.golang.org/protobuf v1.23.0
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt

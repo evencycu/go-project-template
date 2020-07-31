@@ -4,7 +4,7 @@ package mgopool
 const (
 	UnknownError       = 1030000
 	APIConnectDatabase = 1030001
-	APIFullResource    = 1030013
+	ContextTimeout     = 1030013
 	MongoPoolClosed    = 1030014
 	MongoDataNodeOp    = 1030015
 	// Data Logic Error
@@ -20,6 +20,7 @@ const (
 	Timeout                = 1030314
 	StringIndexTooLong     = 1030315
 	BadUpdateOperatorUsage = 1030316
+	TypeNotSupported       = 1030317
 )
 
 // Mongo Error Message

@@ -3,18 +3,20 @@ package intercom
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gopkg"
@@ -27,6 +29,14 @@ var (
 	centerDot = []byte("·")
 	dot       = []byte(".")
 	slash     = []byte("/")
+)
+
+var (
+	slowReqDuration = 5 * time.Second
+)
+
+var (
+	proxyMap = sync.Map{}
 )
 
 const (
@@ -57,6 +67,10 @@ func (w bodyLogWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
+func SetSlowReqThreshold(t time.Duration) {
+	slowReqDuration = t
+}
+
 // M800Recovery does the recover for gin handler with M800 response
 func M800Recovery(panicCode int) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -65,12 +79,10 @@ func M800Recovery(panicCode int) gin.HandlerFunc {
 				// Check for a broken connection, as it is not really a
 				// condition that warrants a panic stack trace.
 				var brokenPipe bool
-				if ne, ok := err.(*net.OpError); ok {
-					if se, ok := ne.Err.(*os.SyscallError); ok {
-						if strings.Contains(strings.ToLower(se.Error()), "broken pipe") || strings.Contains(strings.ToLower(se.Error()), "connection reset by peer") {
-							brokenPipe = true
-						}
-					}
+				var errSyscall *os.SyscallError
+				if ne, ok := err.(error); ok && errors.As(ne, &errSyscall) &&
+					(strings.Contains(strings.ToLower(errSyscall.Error()), "broken pipe") || strings.Contains(strings.ToLower(errSyscall.Error()), "connection reset by peer")) {
+					brokenPipe = true
 				}
 				stack := stack(3)
 				panicStr := fmt.Sprintf("[Recovery] %s panic recovered:\n%s\n%s",
@@ -216,6 +228,28 @@ func AccessMiddleware(timeout time.Duration, localNamespace string, opts ...*Log
 			// common case
 		}
 
+		if time.Since(start) > slowReqDuration {
+			ext.SamplingPriority.Set(sp, uint16(1))
+		}
+
+		if traceErrCode := c.GetInt(goctx.LogKeyErrorCode); traceErrCode != 0 {
+			ext.SamplingPriority.Set(sp, uint16(1))
+			ext.Error.Set(sp, true)
+			sp.SetTag(TraceTagGinErrorCode, traceErrCode)
+			ctx.Set(goctx.LogKeyErrorCode, traceErrCode)
+			strs := strings.Split(handlerName, ".")
+			logHandlerName := strs[len(strs)-1]
+			logReqBody, logRespBody := httpBody, blw.body.Bytes()
+			if reqHider := hiderReqMap[logHandlerName]; reqHider != nil {
+				logReqBody = reqHider(logReqBody)
+			}
+			if respHider := hiderRespMap[logHandlerName]; respHider != nil {
+				logRespBody = respHider(c.Writer.Status(), logRespBody)
+			}
+			dumpRequestGivenBody(ctx, ErrorTraceLevel, c.Request, logReqBody)
+			m800log.Logf(ctx, ErrorTraceLevel, "API Response %d: %s", c.Writer.Status(), logRespBody)
+			return
+		}
 		if m800log.GetLogger().Level >= logrus.DebugLevel {
 			strs := strings.Split(handlerName, ".")
 			logHandlerName := strs[len(strs)-1]
@@ -230,25 +264,14 @@ func AccessMiddleware(timeout time.Duration, localNamespace string, opts ...*Log
 			m800log.Debugf(ctx, "API Response %d: %s", c.Writer.Status(), logRespBody)
 			return
 		}
-		if traceErrCode := c.GetInt(goctx.LogKeyErrorCode); traceErrCode != 0 {
-			sp.SetTag(TraceTagGinErrorCode, traceErrCode)
-			ctx.Set(goctx.LogKeyErrorCode, traceErrCode)
-			strs := strings.Split(handlerName, ".")
-			logHandlerName := strs[len(strs)-1]
-			logReqBody, logRespBody := httpBody, blw.body.Bytes()
-			if reqHider := hiderReqMap[logHandlerName]; reqHider != nil {
-				logReqBody = reqHider(logReqBody)
-			}
-			if respHider := hiderRespMap[logHandlerName]; respHider != nil {
-				logRespBody = respHider(c.Writer.Status(), logRespBody)
-			}
-			dumpRequestGivenBody(ctx, ErrorTraceLevel, c.Request, logReqBody)
-			m800log.Logf(ctx, ErrorTraceLevel, "API Response %d: %s", c.Writer.Status(), logRespBody)
-		}
 	}
 }
 
 func newProxy(ctx goctx.Context, forwardedHost string, timeout time.Duration, proxyErrorCode int) *httputil.ReverseProxy {
+	v, ok := proxyMap.Load(forwardedHost)
+	if ok {
+		return v.(*httputil.ReverseProxy)
+	}
 	director := func(req *http.Request) {
 		req.Header.Add(proxyHeaderForwardHost, forwardedHost)
 		req.Header.Add(proxyHeaderOriginHost, req.Host)
@@ -278,18 +301,30 @@ func newProxy(ctx goctx.Context, forwardedHost string, timeout time.Duration, pr
 			}
 		},
 	}
+	proxyMap.Store(forwardedHost, proxy)
 	return proxy
 }
 
-// CrossRegionMiddleware
-func CrossRegionMiddleware(service, servicePort, localNamespace string, timeout time.Duration, proxyErrorCode int) gin.HandlerFunc {
+func CrossRegionNamespaceMiddleware(service, servicePort, localNamespace string, nsFunc func(c *gin.Context) (string, gopkg.CodeError), timeout time.Duration, proxyErrorCode int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Edge server would carry the service home region info
 		// https://issuetracking.maaii.com:9443/display/LCC5/Edge+Server+Header+Rules
-		ns := c.GetHeader(goctx.HTTPHeaderServiceHome)
+		ns, err := nsFunc(c)
+		if err != nil {
+			errMsg := fmt.Sprintf("cross region lookup ns failed, err: %+v", err)
+			GinOKError(c, gopkg.NewCodeError(proxyErrorCode, errMsg))
+			c.Abort()
+			return
+		}
+
+		if ns == "" {
+			GinError(c, gopkg.NewCodeError(CodeEmptyServiceHome, MsgEmptyServiceHome))
+			c.Abort()
+			return
+		}
+
 		cid := c.GetHeader(goctx.HTTPHeaderCID)
 		path := c.Request.URL.Path
-
 		if ns == localNamespace {
 			c.Next()
 			return
@@ -317,9 +352,19 @@ func CrossRegionMiddleware(service, servicePort, localNamespace string, timeout 
 		crossSp.SetTag(TraceTagFromNs, localNamespace)
 		m800log.Debugf(ctx, "[cross region middleware] do the cross forward to :%s, cid: %s, path: %s", forwardedHost, cid, path)
 		proxy := newProxy(ctx, forwardedHost, timeout, proxyErrorCode)
+		ctx.InjectHTTPHeader(c.Request.Header)
 		proxy.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 	}
+}
+
+// CrossRegionMiddleware
+func CrossRegionMiddleware(service, servicePort, localNamespace string, timeout time.Duration, proxyErrorCode int) gin.HandlerFunc {
+	nsFunc := func(c *gin.Context) (string, gopkg.CodeError) {
+		return c.GetHeader(goctx.HTTPHeaderServiceHome), nil
+	}
+
+	return CrossRegionNamespaceMiddleware(service, servicePort, localNamespace, nsFunc, timeout, proxyErrorCode)
 }
 
 func BanAnonymousMiddleware(errCode gopkg.CodeError) gin.HandlerFunc {

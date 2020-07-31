@@ -22,7 +22,7 @@ BLUEPRINT_PATH=blueprint/$(APP).apib
 export GOPRIVATE=gitlab.com*
 
 build:
-	go install -i -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
+	go install -mod=mod -i -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
 
 run: build
 	$(GOPATH)/bin/$(APP) server --config $(CONF)
@@ -38,12 +38,12 @@ clean:
 	docker system prune -f
 
 modrun:
-	GO111MODULE=on go install -mod=vendor -v $(SOURCE)
+	GO111MODULE=on go install -v $(SOURCE)
 	$(GOPATH)/bin/$(APP) server --config $(CONF) 
 
 modvendor:
 	- rm go.sum
-	GO111MODULE=on go build -v $(SOURCE)
+	GO111MODULE=on go build -mod=mod -v $(SOURCE)
 	GO111MODULE=on go mod tidy
 	GO111MODULE=on go mod vendor
 	

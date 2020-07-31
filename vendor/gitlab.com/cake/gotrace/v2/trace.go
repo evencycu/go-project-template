@@ -8,6 +8,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	ext "github.com/opentracing/opentracing-go/ext"
+
 	// blank import for better readibility
 	_ "github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -37,36 +38,11 @@ func InitJaeger(componentName string, samplerConf *jaegercfg.SamplerConfig, repo
 	return closer, nil
 }
 
-// // CreateSpanFromReq extract span from given http request and inject to context
-// // always need finish
-// func CreateSpanFromReq(ctx goctx.Context, spanName string, req *http.Request) opentracing.Span {
-// 	var sp opentracing.Span
-// 	wireContext, err := opentracing.GlobalTracer().Extract(
-// 		opentracing.HTTPHeaders,
-// 		opentracing.HTTPHeadersCarrier(req.Header))
-// 	if err != nil {
-// 		sp = opentracing.StartSpan(spanName)
-// 	} else {
-// 		sp = opentracing.StartSpan(
-// 			spanName,
-// 			ext.RPCServerOption(wireContext))
-// 	}
-// 	tags := &TagsMap{
-// 		Method: req.Method,
-// 		URL:    req.URL,
-// 		Header: req.Header,
-// 	}
-// 	AttachHttpTags(sp, tags)
-// 	InjectContext(sp, ctx)
-// 	return sp
-// }
-
 // CreateSpan extract span from given context first, if so, return it
 // else create a new span (from empty, or by context header) and inject to context
 func CreateSpan(ctx goctx.Context, spanName string) (sp opentracing.Span, needFinish bool) {
-	var ok bool
-	sp, ok = ctx.Get(goctx.LogKeyTrace).(opentracing.Span)
-	if ok {
+	sp = ctx.GetSpan()
+	if sp != nil {
 		return
 	}
 	needFinish = true
@@ -74,42 +50,37 @@ func CreateSpan(ctx goctx.Context, spanName string) (sp opentracing.Span, needFi
 		opentracing.TextMap,
 		opentracing.TextMapCarrier(ctx.HeaderKeyMap()))
 	if err != nil {
-		sp = opentracing.StartSpan(spanName)
+		sp = ctx.StartSpanFromContext(spanName)
 	} else {
-		sp = opentracing.StartSpan(
-			spanName,
-			ext.RPCServerOption(wireContext))
+		sp = ctx.StartSpanFromContext(spanName, opentracing.ChildOf(wireContext))
 	}
 	for k, v := range ctx.Map() {
 		sp.SetTag(k, v)
 	}
-	InjectContext(sp, ctx)
 	return
 }
 
 func CreateChildOfSpan(ctx goctx.Context, spanName string) (sp opentracing.Span) {
-	parentSpan, ok := ctx.Get(goctx.LogKeyTrace).(opentracing.Span)
-	if ok {
-		sp = opentracing.StartSpan(
-			spanName,
-			opentracing.ChildOf(parentSpan.Context()))
-		_ = InjectContext(sp, ctx)
-		return sp
-	}
-	sp, _ = CreateSpan(ctx, spanName)
+	sp = ctx.StartSpanFromContext(spanName)
 	return
 }
 
 func CreateFollowsFromSpan(ctx goctx.Context, spanName string) (sp opentracing.Span) {
-	parentSpan, ok := ctx.Get(goctx.LogKeyTrace).(opentracing.Span)
-	if ok {
-		sp = opentracing.StartSpan(
-			spanName,
-			opentracing.FollowsFrom(parentSpan.Context()))
-		_ = InjectContext(sp, ctx)
+	parentSpan := ctx.GetSpan()
+	if parentSpan != nil {
+		sp = opentracing.StartSpan(spanName, opentracing.FollowsFrom(parentSpan.Context()))
+		ctx.SetSpan(sp)
 		return
 	}
-	sp, _ = CreateSpan(ctx, spanName)
+	wireContext, err := opentracing.GlobalTracer().Extract(
+		opentracing.TextMap,
+		opentracing.TextMapCarrier(ctx.HeaderKeyMap()))
+	if err != nil {
+		sp = opentracing.StartSpan(spanName)
+	} else {
+		sp = opentracing.StartSpan(spanName, opentracing.FollowsFrom(wireContext))
+	}
+	ctx.SetSpan(sp)
 	return
 }
 
@@ -145,12 +116,4 @@ func InjectSpan(sp opentracing.Span, header http.Header) error {
 		opentracing.TextMap,
 		opentracing.HTTPHeadersCarrier(header))
 	return err
-}
-
-func InjectContext(sp opentracing.Span, ctx goctx.Context) error {
-	// no use inject because ctx is not opentracing.TextMap
-	// ctx is Set(string,interface{})
-	// opentracing.TextMap is Set(string,string)
-	ctx.Set(goctx.LogKeyTrace, sp)
-	return nil
 }

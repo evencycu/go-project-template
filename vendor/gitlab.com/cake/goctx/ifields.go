@@ -1,10 +1,9 @@
 package goctx
 
 import (
-	"fmt"
+	"net/http"
+	"net/textproto"
 	"strings"
-
-	uuid "github.com/gofrs/uuid"
 )
 
 const (
@@ -24,6 +23,7 @@ const (
 	HTTPHeaderClientPort     = "x-forwarded-port"
 	HTTPHeaderClientPlatform = "x-m800-platform"
 	HTTPHeaderDeviceID       = "x-m800-deviceid"
+	HTTPHeaderWebTabID       = "x-m800-tabid"
 
 	HTTPHeaderUserHome    = "x-m800-usr-home"
 	HTTPHeaderServiceHome = "x-m800-svc-home"
@@ -31,6 +31,9 @@ const (
 	HTTPHeaderUserRole    = "x-m800-usr-role"
 	HTTPHeaderUserGroup   = "x-m800-usr-group"
 	HTTPHeaderUserAnms    = "x-m800-usr-anms"
+	HTTPHeaderCustomRole  = "x-m800-custom-role" // This field is for customer-defined role.
+
+	HTTPHeaderInternalCaller = "x-m800-internal-caller"
 
 	// for logger
 	LogKeyTrace         = "uti"
@@ -47,13 +50,16 @@ const (
 	LogKeyClientPort     = "clientPort"
 	LogKeyClientPlatform = "platform"
 	LogKeyDeviceID       = "deviceID"
+	LogKeyWebTabID       = "webTabID"
 
-	LogKeyUserHome    = "usrHome"
-	LogKeyServiceHome = "svcHome"
-	LogKeyServiceType = "svcType"
-	LogKeyUserRole    = "usrRole"
-	LogKeyUserGroup   = "usrGroup"
-	LogKeyUserAnms    = "usrAnms"
+	LogKeyUserHome       = "usrHome"
+	LogKeyServiceHome    = "svcHome"
+	LogKeyServiceType    = "svcType"
+	LogKeyUserRole       = "usrRole"
+	LogKeyUserGroup      = "usrGroup"
+	LogKeyUserAnms       = "usrAnms"
+	LogKeyCustomRole     = "customRole"
+	LogKeyInternalCaller = "internalCaller"
 	// LogKeyTimestamp is the time field key
 	LogKeyTimestamp = "time"
 	// LogKeyLevel is the level field key
@@ -102,7 +108,9 @@ type Getter interface {
 	Get(key string) string
 }
 
-// GetHeaderer interface designed for getting goctx from gin.Context.GetHeader
+// Deprecated
+// remove for code simplify
+// GetHeaderer interface designed for getting goctx from gin.Context
 type GetHeaderer interface {
 	GetHeader(key string) string
 }
@@ -121,6 +129,7 @@ func init() {
 		LogKeyEID:            HTTPHeaderEID,
 		LogKeyService:        HTTPHeaderService,
 		LogKeyDeviceID:       HTTPHeaderDeviceID,
+		LogKeyWebTabID:       HTTPHeaderWebTabID,
 		LogKeyClientPlatform: HTTPHeaderClientPlatform,
 		LogKeyClientIP:       HTTPHeaderClientIP,
 		LogKeyClientPort:     HTTPHeaderClientPort,
@@ -128,8 +137,10 @@ func init() {
 		LogKeyServiceHome:    HTTPHeaderServiceHome,
 		LogKeyServiceType:    HTTPHeaderServiceType,
 		// LogKeyUserRole:       HTTPHeaderUserRole,
-		LogKeyUserGroup: HTTPHeaderUserGroup,
-		LogKeyUserAnms:  HTTPHeaderUserAnms,
+		LogKeyUserGroup:      HTTPHeaderUserGroup,
+		LogKeyUserAnms:       HTTPHeaderUserAnms,
+		LogKeyCustomRole:     HTTPHeaderCustomRole,
+		LogKeyInternalCaller: HTTPHeaderInternalCaller,
 	}
 
 	hKMap = map[string]string{
@@ -142,13 +153,16 @@ func init() {
 		HTTPHeaderClientIP:       LogKeyClientIP,
 		HTTPHeaderClientPort:     LogKeyClientPort,
 		HTTPHeaderDeviceID:       LogKeyDeviceID,
+		HTTPHeaderWebTabID:       LogKeyWebTabID,
 		HTTPHeaderClientPlatform: LogKeyClientPlatform,
 		HTTPHeaderUserHome:       LogKeyUserHome,
 		HTTPHeaderServiceHome:    LogKeyServiceHome,
 		HTTPHeaderServiceType:    LogKeyServiceType,
 		// HTTPHeaderUserRole:       LogKeyUserRole,
-		HTTPHeaderUserGroup: LogKeyUserGroup,
-		HTTPHeaderUserAnms:  LogKeyUserAnms,
+		HTTPHeaderUserGroup:      LogKeyUserGroup,
+		HTTPHeaderUserAnms:       LogKeyUserAnms,
+		HTTPHeaderCustomRole:     LogKeyCustomRole,
+		HTTPHeaderInternalCaller: LogKeyInternalCaller,
 	}
 }
 
@@ -218,11 +232,12 @@ func GetContextFromGetter(g Getter) Context {
 	return c
 }
 
+// Deprecated
+// remove for code simplify
 func GetContextFromGetHeader(g GetHeaderer) Context {
 	c := Background()
-	var v string
 	for hk, sk := range hKMap {
-		v = g.GetHeader(hk)
+		v := g.GetHeader(hk)
 		if len(v) > 0 {
 			c.Set(sk, v)
 		}
@@ -234,58 +249,29 @@ func GetContextFromGetHeader(g GetHeaderer) Context {
 	return c
 }
 
+func GetContextFromHeader(g http.Header) Context {
+	c := Background()
+	for hk, sk := range hKMap {
+		v := g[textproto.CanonicalMIMEHeaderKey(hk)]
+		if len(v) > 0 {
+			c.Set(sk, strings.Join(v, ","))
+		}
+	}
+	if role := g.Get(HTTPHeaderUserRole); role != "" {
+		c.Set(LogKeyUserRole, strings.Split(role, ","))
+	}
+
+	return c
+}
+
+// CopyContext copy context value and span
 func CopyContext(ctx Context) Context {
 	newCtx := Background()
 	for k, v := range ctx.Map() {
 		newCtx.Set(k, v)
 	}
+	if ctx.GetSpan() != nil {
+		newCtx.SetSpan(ctx.GetSpan())
+	}
 	return newCtx
-}
-
-func (c *MapContext) InjectHTTPHeader(s Setter) {
-	for hk, sk := range c.HeaderKeyMap() {
-		s.Set(hk, sk)
-	}
-}
-
-// HeaderKeyMap returns a map, key is HTTP Header Field, value is the field value stored in Context
-func (c *MapContext) HeaderKeyMap() (ret map[string]string) {
-	ret = make(map[string]string)
-	for sk, hk := range sKMap {
-		v, _ := c.GetString(sk)
-		if len(v) > 0 {
-			ret[hk] = v
-		}
-	}
-	if _, ok := c.keys[LogKeyTrace]; ok {
-		ret[HTTPHeaderTrace] = fmt.Sprintf("%s", c.Value(mapContextKey(LogKeyTrace)))
-	}
-	switch role := c.Get(LogKeyUserRole).(type) {
-	case string:
-		ret[HTTPHeaderUserRole] = role
-	case []string:
-		ret[HTTPHeaderUserRole] = strings.Join(role, ",")
-	}
-	return
-}
-
-// SetShortenKey sets Context with Header Key, Store in Context with LogKey Key
-func (c *MapContext) SetShortenKey(headerField string, headerValue interface{}) {
-	if sk, ok := hKMap[headerField]; ok {
-		c.Set(sk, headerValue)
-	}
-}
-
-// GetCID return the CID, if not, generate one
-func (c *MapContext) GetCID() (string, error) {
-	cid, ok := c.GetString(LogKeyCID)
-	if !ok {
-		uuidv4, err := uuid.NewV4()
-		if err != nil {
-			return "", err
-		}
-		cid = uuidv4.String()
-		c.Set(LogKeyCID, cid)
-	}
-	return cid, nil
 }

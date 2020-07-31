@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"runtime"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -18,6 +19,9 @@ import (
 
 // ParseJSONReq read body
 func ParseJSONReq(ctx goctx.Context, req *http.Request, v interface{}) gopkg.CodeError {
+	if req == nil {
+		return gopkg.NewCodeError(CodeNilRequest, "nil request")
+	}
 	raw, err := ReadFromReadCloser(req.Body)
 	if err != nil {
 		return err
@@ -34,7 +38,7 @@ func ParseJSONReq(ctx goctx.Context, req *http.Request, v interface{}) gopkg.Cod
 func ParseJSONGin(ctx goctx.Context, c *gin.Context, v interface{}) gopkg.CodeError {
 	rawI, ok := c.Get(KeyBody)
 	if !ok {
-		return gopkg.NewCodeError(CodeParseJSON, "no http body")
+		return ParseJSONReq(ctx, c.Request, v)
 	}
 	raw, ok := rawI.([]byte)
 	if !ok {
@@ -182,11 +186,42 @@ func GetContextFromGin(c *gin.Context) goctx.Context {
 		}
 	}
 
-	ctx := goctx.GetContextFromGetHeader(c)
+	ctx := goctx.GetContextFromHeader(c.Request.Header)
 	// new ctx
 	c.Set(goctx.ContextKey, ctx)
 
 	return ctx
+}
+
+func GetInternalFirstCaller(c goctx.Context) string {
+	callerStr, _ := c.GetString(goctx.LogKeyInternalCaller)
+	if callerStr == "" {
+		return ""
+	}
+
+	return strings.Split(callerStr, ",")[0]
+}
+
+func ContainsCaller(c goctx.Context, caller string) bool {
+	callerStr, _ := c.GetString(goctx.LogKeyInternalCaller)
+
+	strs := strings.Split(callerStr, ",")
+	for _, str := range strs {
+		if str == caller {
+			return true
+		}
+	}
+	return false
+}
+
+func GetInternalLastCaller(c goctx.Context) string {
+	callerStr, _ := c.GetString(goctx.LogKeyInternalCaller)
+	if callerStr == "" {
+		return ""
+	}
+	strs := strings.Split(callerStr, ",")
+	n := len(strs)
+	return strs[n-1]
 }
 
 func GetCallerName(callerName string) string {

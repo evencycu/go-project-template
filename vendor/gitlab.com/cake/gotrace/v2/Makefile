@@ -4,7 +4,7 @@ build:
 	go build
 
 test: 
-	go test -cover -race -v ./...
+	go test -mod=vendor -cover -race -v ./...
 
 mod: 
 	go mod tidy
