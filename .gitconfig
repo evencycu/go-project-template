@@ -1,7 +1,0 @@
-[http]
-	proxy = http://192.168.0.30:3128
-[user]
-	email = youremail@m800.com
-	name = Your Name@ M800
-[url "ssh://git@gitlab.devops.maaii.com:2222/"]
-	insteadof = https://gitlab.com/
