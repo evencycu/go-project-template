@@ -80,21 +80,6 @@ func GinRouter() (*gin.Engine, error) {
 	return router, nil
 }
 
-func mongoInfo(c *gin.Context) {
-	if mgopool.IsNil() {
-		c.JSON(http.StatusOK, nil)
-		return
-	}
-	status := map[string]interface{}{}
-	status["Len"] = mgopool.Len()
-	status["IsAvailable"] = mgopool.IsAvailable()
-	status["Cap"] = mgopool.Cap()
-	status["Mode"] = mgopool.Mode()
-	status["Config"] = mgopool.ShowConfig()
-	status["LiveServers"] = mgopool.LiveServers()
-	c.JSON(http.StatusOK, status)
-}
-
 func appConfig(c *gin.Context) {
 	settings := viper.AllSettings()
 	delete(settings, "database")

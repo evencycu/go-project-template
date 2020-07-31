@@ -55,7 +55,7 @@ local.toml
 go.mod
 go.sum
 .gitignore
-.gitconfig
+sonar-project.properties
 Makefile)
 
 for i in "${copy_list[@]}"
@@ -77,8 +77,4 @@ find . -type f -exec sed -i'' -e "s/go-project-template/$1/g" {} +
 mv gpt $2
 find . -type f -exec sed -i'' -e "s/gpt/$2/g" {} +
 
-echo "If you are working in M800 environment, you have to set up git"
-echo "Please copy .gitconfig file in your project directory to your home directory"
-echo "cp .gitconfig ~/"
-echo "vi ~/.gitconfig to change your name and email address"
 echo "Copy completed"
