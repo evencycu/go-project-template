@@ -24,10 +24,60 @@
 
 ## How to create a new project
 
-1. Copy necessary files
+0. OS environement setup
+
+    It is suggested to use Linux as your development environment as our production environment is Linux.
+    Ubuntu 20.04 LTS is recommended. Other Linix distros like CentOS 8 are also OK.
+    The following procedures are based on Ubuntu 20.04 LTS.
+
+    MacOS is also OK. You may need to use Homebew to install required packages.
+
+    If you are using Windows 10, you are advised to install WSL2.
+    Windows OS requirement: Windows 10 version 2004, OS build 19041.264
+    https://docs.microsoft.com/en-us/windows/wsl/install-win10
+    After setting up WSL2, install Ubuntu 20.04 LTS from Microsoft Store
+
+    IDE:
+    You can use vscode in all your environments.
+    If you are using WSL2, you can launch vscode within your Ubuntu Linux. 
+    Type "code" in your command prompt.
+    Then you can install go extention in vscode marketplace.
+
+    Vim-go is a good choice if you are a hardcore vi user.
+
+    If you have difficulty on setting up your environment, please talk to your team lead.
+
+1. Git setup
+
+    The gitlab acocunt is the LDAP account. You should get your LDAP account from IT team.
+    LDAP account is different from Windows AD account, i.e. your email account.
+    If you cannot login gitlab, talk to devops team.
+    M800 gitlab URL: https://gitlab.devops.maaii.com
+
+    Gitlab configuration
+    Generate a SSH key. Guide: https://gitlab.devops.maaii.com/help/ssh/README#generating-a-new-ssh-key-pair
+    Deploy the SSH key in your gitlab account.
+   
+    Git configuration
+    Please change user.name and user.email. If you are using proxy server in office, please setup http.proxy.
+    ```shell
+    $ git config --global url."ssh://git@gitlab.devops.maaii.com:2222/".insteadOf https://gitlab.com/
+    $ git config --global user.name "John Doe"
+    $ git config --global user.email johndoe@m800.com
+    $ git config --global core.editor vi
+    $ git config --global http.proxy http://192.168.0.30:3128
+    ```
+    Git tutorial
+    https://git-scm.com/docs/gittutorial
+    https://github.com/twtrubiks/Git-Tutorials
+
+    If you have got this go-project-template, you should have probably set up the gitlab account.
+    If not, please follow the above procedure to set up the gitlab acocunt.
+
+2. Copy necessary files
 
     Assumption:
-    Assume you are using Linux/MacOS system, bash, find and sed commands are avaiable.
+    Assume you are using Linux/MacOS system, bash, find and sed commands should be avaiable.
     Usualy they do in a normal Linux/MacOS environment.
     If you are using Windows environment, this procedure doesn't apply. You have to
     read copy.sh to do it manually in Windows environment.
@@ -58,17 +108,23 @@
 
     ```shell
     $ git init
-    $ go mod vendor
+    $ git remote add origin ssh://git@gitlab.devops.maaii.com:2222/cake/your_project_name.git
+    $ git add .
+    $ git commit -m "Initial commit"
+    $ git push -u origin master
     ```
+    remember to change the project path "/cake/your_project_name.git" to your actual project path
 
     Then you should be able to make the binary
     ```shell
+    $ go mod vendor
     $ make
     ```
     
     The binary will be in your ~/go/bin directory
 
-    * replace all error codes in the project alias directory by project error code. (register error code here: [Link](https://issuetracking.maaii.com:9443/pages/viewpage.action?pageId=88354121))  
+    * replace all error codes in the project alias directory by project error code. 
+    (register error code here: [Link](https://issuetracking.maaii.com:9443/pages/viewpage.action?pageId=88354121))  
 
     Note your default project directory will be in gitlab.com/cake/your_project_name
     Make sure this is the correct project path, if not, please change the path in all related files
@@ -86,34 +142,36 @@
     please talk to devops team for the correct path in artifactory server and help you to setup CI/CD pipeline for your application
 
 
-2. CI/CD guidelines
+3. CI/CD guidelines
 
-    The gitlab acocunt is the LDAP account. You should get the LDAP account from IT team.
-    If you cannot login gitlab, talk to devops team.
-    gitlab URL: https://gitlab.devops.maaii.com
+    Submit your code
 
-    Gitlab configuration
-    Then generate a SSH key. Guide: https://gitlab.devops.maaii.com/help/ssh/README#generating-a-new-ssh-key-pair
-    Deploy the SSH key in your gitlab account.
-   
-    Git configuration
-    Please change user.name and user.email. If you are using proxy server in office, please setup http.proxy.
+    commit your code
     ```shell
-    $ git config --global url."ssh://git@gitlab.devops.maaii.com:2222/".insteadOf https://gitlab.com/
-    $ git config --global user.name "John Doe"
-    $ git config --global user.email johndoe@m800.com
-    $ git config --global core.editor vi
-    $ git config --global http.proxy http://192.168.0.30:3128
+    $ git add .
+    $ git commit -m "Your commit comment"
     ```
-    Git tutorial
-    https://git-scm.com/docs/gittutorial
-    https://github.com/twtrubiks/Git-Tutorials
 
-    If you have get this go-project-template, you should have probably set up the gitlab account.
-    If not, please follow the above procedure to set up the gitlab acocunt.
+    merge your code with master branch, assume your current branch version is branch_1.0
+    ```shell
+    $ git checkout master
+    $ git pull
+    $ git branch -m your_branch_version
+    $ git merge branch_1.0
+    ```
+    If there is a conflict, please resolve the conflict first before you submit it gitlab.
+    If there is a conflict, resolve it and commit it again.
+
+    push your code for review.
+    ```shell
+    $ git push -u origin your_branch_version
+    ```
+    It will give you a URL for the merge request.
+    Go to the link and submit your merge request.
+    After that, ask your teammate or team lead to do code review and merge your code to master.
 
     CI/CD flow
-    when you push your code to gitlab project master branch, jenkins will fetch the new code and build it.
+    Your code is merged to gitlab project master branch, jenkins will fetch the new code and build it.
     Jenkins URL: https://emma.devops.m800.com/
     You can login with your LDAP account and search your project.
     Jenkins will do build, unit test, sonarcube code scan and deploy.
@@ -133,6 +191,7 @@
 
     Access your buid in dev and int environment
     You should get a node port for your application. You need to ask devops team to give you a new node port for your application.
+    You cannot randomly assign a node port. They are managed by devops team to avoid conflicts.
     Then you can access your application in URL: http://kube-worker.cloud.m800.com:node_port
     dev and int environments have different node ports.
 
@@ -141,7 +200,7 @@
     let QA/operation team to understand the changes and bug fix. If the changes are huge, it is suggested to give them a briefing
     to let them understand your application easier.
 
-    Note: You have to develop your unit test/integration code to prove your code is working properly before you can submit it to
+    Note: You have to develop your unit test/integration code to prove your code is working properly before you submit it to
     QA for testing.
 
 3. Production issue
