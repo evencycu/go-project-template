@@ -37,6 +37,21 @@
     https://docs.microsoft.com/en-us/windows/wsl/install-win10
     After setting up WSL2, install Ubuntu 20.04 LTS from Microsoft Store
 
+    Install Go
+    Download binary packagefrom https://golang.org/dl/ to /usr/local/
+    untar go package and delete the binary package
+    Insert the following in your ~/.bashrc
+    ```
+    export PATH=$PATH:/usr/local/go/bin
+    export GO111MODULE=on
+    export GOFLAGS='-mod=vendor'
+    export GOPRIVATE=gitlab.com
+    export NO_PROXY=gitlab.devops.maaii.com
+    export no_proxy=gitlab.devops.maaii.com
+    export http_proxy=http://192.168.0.30:3128
+    ```
+    if you are not behind a web proxy server, you don't need last line
+
     IDE:
     You can use vscode in all your environments.
     If you are using WSL2, you can launch vscode within your Ubuntu Linux. 
