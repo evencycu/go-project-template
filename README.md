@@ -24,13 +24,13 @@
 
 ## How to create a new project
 
-0. OS environement setup
+0. OS environment setup
 
     It is suggested to use Linux as your development environment as our production environment is Linux.
-    Ubuntu 20.04 LTS is recommended. Other Linix distros like CentOS 8 are also OK.
+    Ubuntu 20.04 LTS is recommended. Other Linux distros like CentOS 8 are also OK.
     The following procedures are based on Ubuntu 20.04 LTS.
 
-    MacOS is also OK. You may need to use Homebew to install required packages.
+    MacOS is also OK. You may need to use Homebrew to install required packages.
 
     If you are using Windows 10, you are advised to install WSL2.
     Windows OS requirement: Windows 10 version 2004, OS build 19041.264
@@ -38,7 +38,7 @@
     After setting up WSL2, install Ubuntu 20.04 LTS from Microsoft Store
 
     Install Go
-    Download binary packagefrom https://golang.org/dl/ to /usr/local/
+    Download binary package from https://golang.org/dl/ to /usr/local/
     untar go package and delete the binary package
     Insert the following in your ~/.bashrc
     ```
@@ -56,7 +56,7 @@
     You can use vscode in all your environments.
     If you are using WSL2, you can launch vscode within your Ubuntu Linux. 
     Type "code" in your command prompt.
-    Then you can install go extention in vscode marketplace.
+    Then you can install go extension in vscode marketplace.
 
     Vim-go is a good choice if you are a hardcore vi user.
 
@@ -64,7 +64,7 @@
 
 1. Git setup
 
-    The gitlab acocunt is the LDAP account. You should get your LDAP account from IT team.
+    The gitlab account is the LDAP account. You should get your LDAP account from IT team.
     LDAP account is different from Windows AD account, i.e. your email account.
     If you cannot login gitlab, talk to devops team.
     M800 gitlab URL: https://gitlab.devops.maaii.com
@@ -87,18 +87,18 @@
     https://github.com/twtrubiks/Git-Tutorials
 
     If you have got this go-project-template, you should have probably set up the gitlab account.
-    If not, please follow the above procedure to set up the gitlab acocunt.
+    If not, please follow the above procedure to set up the gitlab account.
 
 2. Copy necessary files
 
     Assumption:
-    Assume you are using Linux/MacOS system, bash, find and sed commands should be avaiable.
-    Usualy they do in a normal Linux/MacOS environment.
+    Assume you are using Linux/MacOS system, bash, find and sed commands should be available.
+    Usually they do in a normal Linux/MacOS environment.
     If you are using Windows environment, this procedure doesn't apply. You have to
     read copy.sh to do it manually in Windows environment.
 
     If your project is named my_go_project, you can alias your project name as mgp.
-    The purpose is to fulfill the requriement of this go project template.
+    The purpose is to fulfill the requirement of this go project template.
     The project alias will be a go module.
 
     ```shell
@@ -151,7 +151,7 @@
     The path is your git path. You should commit your code to gitlab server.
     https://gitlab.com is an alias for ssh://git@gitlab.devops.maaii.com:2222/
 
-    If you want to deploy your project in k8s, which is usualy the case,  please review the devops directory. 
+    If you want to deploy your project in k8s, which is usually the case,  please review the devops directory. 
     in devops/base/deployment.yaml, make sure the following is correct 
     image: artifactory.maaii.com/lc-docker-local/my_go_project:latest 
     please talk to devops team for the correct path in artifactory server and help you to setup CI/CD pipeline for your application
@@ -191,7 +191,7 @@
     You can login with your LDAP account and search your project.
     Jenkins will do build, unit test, sonarcube code scan and deploy.
     Developers can have access in development and integration environment.
-    When you feel comforable with your latest code, you can tag it and deploy it to integration environment.
+    When you feel comfortable with your latest code, you can tag it and deploy it to integration environment.
     ```shell
     $ git tag -v v.0.0.1
     $ git push origin v.0.0.1
@@ -204,7 +204,7 @@
     Check files in devops/base/. Details of adjustment is out of scope of this documentation. Please consult devops team
     if you have any issue. If your files in devops/base/ are not properly set up, jenkins cannot build your code successfully.
 
-    Access your buid in dev and int environment
+    Access your build in dev and int environment
     You should get a node port for your application. You need to ask devops team to give you a new node port for your application.
     You cannot randomly assign a node port. They are managed by devops team to avoid conflicts.
     Then you can access your application in URL: http://kube-worker.cloud.m800.com:node_port
