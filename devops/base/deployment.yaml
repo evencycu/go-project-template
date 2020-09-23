@@ -10,6 +10,7 @@ spec:
       containers:
         - name: go-project-template
           image: artifactory.maaii.com/lc-docker-local/go-project-template:latest
+          imagePullPolicy: Always
           ports:
             - name: api-port
               containerPort: 8999

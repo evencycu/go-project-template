@@ -1,13 +1,9 @@
-# docker build -t [image_name]:[tag] .
-FROM golang:1.14.6-alpine as builder
+FROM artifactory.maaii.com/lc-docker-local/golang:1.14.6-alpine-kafka as builder
 WORKDIR /go/src/
-ENV GO111MODULE=on
 
-# Copy vendor first and build for cache layers
-COPY go.mod .
-COPY go.sum .
-COPY vendor vendor
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -mod=vendor -ldflags="-w -s" -v ./vendor/...
+# Install dependency
+COPY vendor/github.com/confluentinc vendor/github.com/confluentinc
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go install -tags dynamic -tags musl -ldflags="-w -s" -a -v ./vendor/...
 
 # Copy source codes and build
 COPY . .
@@ -16,12 +12,13 @@ ARG GITVERSION
 ARG GITBRANCH
 ARG GITREVISION
 ENV PKGPATH=gitlab.com/cake/gopkg
-RUN export BUILDDATE=$(date +"%Y-%m-%dT%H:%M:%SZ") && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -mod=vendor -ldflags="-w -s -X $PKGPATH.appName=$APPNAME -X $PKGPATH.gitCommit=$GITREVISION -X $PKGPATH.appVersion=$GITVERSION -X $PKGPATH.buildDate=$BUILDDATE -X $PKGPATH.gitBranch=$GITBRANCH" -v ./...
+RUN export BUILDDATE=$(date +"%Y-%m-%dT%H:%M:%SZ") && GOOS=linux GOARCH=amd64 go install -tags dynamic -tags musl -mod=vendor -ldflags="-w -s -X $PKGPATH.appName=$APPNAME -X $PKGPATH.gitCommit=$GITREVISION -X $PKGPATH.appVersion=$GITVERSION -X $PKGPATH.buildDate=$BUILDDATE -X $PKGPATH.gitBranch=$GITBRANCH" -v ./...
 
 # For minimal image
-FROM alpine:3.11
+FROM alpine:edge
 RUN apk --no-cache add ca-certificates
-WORKDIR /opt
 COPY --from=builder /go/bin/go-project-template .
+
+# Init server
 COPY local.toml .
-CMD ./go-project-template server -config local.toml
+CMD ./go-project-template server --config ./local.toml

@@ -14,7 +14,7 @@
   # output = "Discard"
   output = "Stdout"
   # output = "test.log"
-  level = "error"
+  level = "debug"
   timestamp_format = ""
   access_level = "trace"
 
@@ -42,17 +42,17 @@
 
 [database]
 [database.mgo]
-  name = "Dev"
-  user = "maaii"
-  password = "@maaii"
+  name = "local"
+  user = "lcc5"
+  password = "@lcc5"
   authdatabase = "admin"
   max_conn = 4
   max_idle = 15
   timeout = "30s"
-  direct = true
+  direct = false
   secondary = false
   mongos = false
-  hosts = "192.168.118.173:27017"
+  hosts = "172.30.3.146:27017;172.30.3.36:27017;172.30.3.161:27017"
 
 [database.redis]
   host = "172.30.3.146:26379;172.30.3.36:26379;172.30.3.161:26379"
