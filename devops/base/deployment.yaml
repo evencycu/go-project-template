@@ -9,7 +9,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: go-project-template
-          image: artifactory.devops.maaii.com/lc-docker-local/go-project-template
+          image: artifactory.maaii.com/lc-docker-local/go-project-template:latest
           imagePullPolicy: Always
           ports:
             - name: api-port

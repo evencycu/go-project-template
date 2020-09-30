@@ -158,7 +158,7 @@
 
     If you want to deploy your project in k8s, which is usually the case,  please review the devops directory. 
     In devops/base/deployment.yaml, make sure the following is correct 
-    image: artifactory.devops.maaii.com/lc-docker-local/my_go_project:latest 
+    image: artifactory.maaii.com/lc-docker-local/my_go_project:latest 
     please talk to devops team for the correct path in artifactory server and help you to setup CI/CD pipeline for your application
 
 3. CI/CD guidelines
