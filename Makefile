@@ -6,7 +6,7 @@ SKAFFOLD_CONF=devops/skaffold.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
 DEVOPSTOOL=$(GOPATH)/src/gitlab.com/cake/DevOps-Tools
 APPCONFIG=$(GOPATH)/src/gitlab.com/cake/app-config
-ARTIFACTORY=artifactory.devops.maaii.com/lc-docker-local/
+ARTIFACTORY=artifactory.maaii.com/lc-docker-local/
 DOCKERTAG=$(ARTIFACTORY)$(APP)
 PWD=$(shell pwd)
 PORT=$(shell head -10 local.toml | grep port | cut -d'=' -f 2 |tr -d '[:space:]'| tr -d '"')

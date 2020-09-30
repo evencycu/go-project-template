@@ -54,7 +54,7 @@ We use artifactory as docker registry now. There are some steps to do:
   ```json
   {
     "insecure-registries" : [
-      "artifactory.devops.maaii.com"
+      "artifactory.maaii.com"
     ]
   }
   ```
@@ -64,7 +64,7 @@ We use artifactory as docker registry now. There are some steps to do:
   ```json
   {
     "insecure-registries" : [
-      "artifactory.devops.maaii.com"
+      "artifactory.maaii.com"
     ]
   }
   ```
@@ -75,7 +75,7 @@ We only grant `lc-docker-local` directory permission to developers now. Please c
 
 Please login with following manner:
 
-    docker login artifactory.devops.maaii.com
+    docker login artifactory.maaii.com
 ---
 
     user: lcc5
@@ -155,7 +155,7 @@ build:
   tagPolicy:
     sha256: {}
   artifacts:
-  - image: artifactory.devops.maaii.com/lc-docker-local/go-project-template # Please change the project name
+  - image: artifactory.maaii.com/lc-docker-local/go-project-template # Please change the project name
     docker:
       dockerfile: devops/Dockerfile # locates the Dockerfile relative to workspace.
       target:
@@ -192,9 +192,9 @@ Q1: build artifact: Error parsing reference: "golang:1.11.6-stretch as builder" 
 
 A1: Update Docker version to `18.+` and restart docker daemon
 
-Q2. build artifact: Get https://artifactory.devops.maaii.com/v2/: x509: certificate signed by unknown authority
+Q2. build artifact: Get https://artifactory.maaii.com/v2/: x509: certificate signed by unknown authority
 
-A2: Add artifactory.devops.maaii.com in insecure registry list in docker daemon and restart
+A2: Add artifactory.maaii.com in insecure registry list in docker daemon and restart
 
 * macOS: change in UI
 
@@ -205,7 +205,7 @@ A2: Add artifactory.devops.maaii.com in insecure registry list in docker daemon 
   ```json
   {
     "insecure-registries" : [
-      "artifactory.devops.maaii.com"
+      "artifactory.maaii.com"
     ]
   }
   ```
@@ -215,7 +215,7 @@ A2: Add artifactory.devops.maaii.com in insecure registry list in docker daemon 
   ```json
   {
     "insecure-registries" : [
-      "artifactory.devops.maaii.com"
+      "artifactory.maaii.com"
     ]
   }
   ```

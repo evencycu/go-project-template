@@ -4,7 +4,7 @@ build:
   tagPolicy:
     sha256: {}
   artifacts:
-  - image: artifactory.devops.maaii.com/lc-docker-local/go-project-template
+  - image: artifactory.maaii.com/lc-docker-local/go-project-template
     docker:  # 	beta describes an artifact built from a Dockerfile.
       dockerfile: devops/Dockerfile	# 	locates the Dockerfile relative to workspace.
       target:  # 	Dockerfile target name to build.
