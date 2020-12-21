@@ -1,6 +1,7 @@
 package intercom
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,15 +9,15 @@ import (
 )
 
 const (
-	pageNotFound     = "page not found"
-	methodNotAllowed = "method not allowed"
+	pageNotFound     = "page not found, method: %s uri: %s"
+	methodNotAllowed = "method not allowed, method: %s uri: %s"
 )
 
 func NoRouteHandler(code int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		response := Response{
 			Code:    code,
-			Message: pageNotFound,
+			Message: fmt.Sprintf(pageNotFound, c.Request.Method, c.Request.URL.String()),
 			CID:     c.GetHeader(goctx.HTTPHeaderCID),
 		}
 		c.Set(goctx.LogKeyErrorCode, code)
@@ -28,7 +29,7 @@ func NoMethodHandler(code int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		response := Response{
 			Code:    code,
-			Message: methodNotAllowed,
+			Message: fmt.Sprintf(methodNotAllowed, c.Request.Method, c.Request.URL.String()),
 			CID:     c.GetHeader(goctx.HTTPHeaderCID),
 		}
 		c.Set(goctx.LogKeyErrorCode, code)

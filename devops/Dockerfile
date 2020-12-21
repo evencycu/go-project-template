@@ -21,4 +21,5 @@ COPY --from=builder /go/bin/go-project-template .
 
 # Init server
 COPY local.toml .
+COPY go.mod .
 CMD ./go-project-template server --config ./local.toml

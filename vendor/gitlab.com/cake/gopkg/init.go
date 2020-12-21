@@ -12,9 +12,9 @@ var (
 )
 
 func init() {
-
 	prometheus.MustRegister(NewBuildInfoCollector())
 	prometheus.MustRegister(prommod.NewCollector(appName))
+	prometheus.MustRegister(NewModFileCollector(appName, "./go.mod"))
 }
 
 // NewBuildInfoCollector collects build info

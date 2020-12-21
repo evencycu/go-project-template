@@ -5,7 +5,7 @@
 * `gitlab.com/cake/goctx`
 * `gitlab.com/cake/gotrace/v2`
 * `gitlab.com/cake/m800log`
-* `gitlab.com/cake/mgopool`
+* `gitlab.com/cake/mgopool/v3`
 
 ## Common Libraries
 

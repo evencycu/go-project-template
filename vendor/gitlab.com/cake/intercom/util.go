@@ -1,6 +1,7 @@
 package intercom
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,16 +20,14 @@ import (
 
 // ParseJSONReq read body
 func ParseJSONReq(ctx goctx.Context, req *http.Request, v interface{}) gopkg.CodeError {
-	if req == nil {
+	if req == nil || req.Body == nil {
 		return gopkg.NewCodeError(CodeNilRequest, "nil request")
 	}
-	raw, err := ReadFromReadCloser(req.Body)
-	if err != nil {
-		return err
-	}
-
-	if errJSON := json.Unmarshal(raw, v); errJSON != nil {
-		m800log.Debugf(ctx, "[ParseJSONReq] err:%v, req body: %s", errJSON.Error(), string(raw))
+	d := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+	d.UseNumber()
+	if errJSON := d.Decode(v); errJSON != nil {
+		m800log.Debugf(ctx, "[ParseJSONReq] err:%v", errJSON.Error())
 		return gopkg.NewCodeError(CodeParseJSON, errJSON.Error())
 	}
 	return nil
@@ -46,8 +45,9 @@ func ParseJSONGin(ctx goctx.Context, c *gin.Context, v interface{}) gopkg.CodeEr
 		m800log.Error(ctx, errMsg)
 		return gopkg.NewCodeError(CodeParseJSON, errMsg)
 	}
-
-	if errJSON := json.Unmarshal(raw, v); errJSON != nil {
+	d := json.NewDecoder(bytes.NewBuffer(raw))
+	d.UseNumber()
+	if errJSON := d.Decode(v); errJSON != nil {
 		m800log.Debugf(ctx, "[ParseJSONGin] err:%v, req body: %s", errJSON.Error(), string(raw))
 		return gopkg.NewCodeError(CodeParseJSON, errJSON.Error())
 	}
@@ -69,14 +69,14 @@ func ReadFromReadCloser(readCloser io.ReadCloser) ([]byte, gopkg.CodeError) {
 
 // ParseJSONReadCloser
 func ParseJSONReadCloser(ctx goctx.Context, readCloser io.ReadCloser, v interface{}) gopkg.CodeError {
-	raw, err := ReadFromReadCloser(readCloser)
-	if err != nil {
-		return err
+	if readCloser == nil {
+		return gopkg.NewCodeError(CodeReadAll, "nil readCloser")
 	}
-
-	errJSON := json.Unmarshal(raw, v)
+	d := json.NewDecoder(readCloser)
+	d.UseNumber()
+	errJSON := d.Decode(v)
 	if errJSON != nil {
-		m800log.Debugf(ctx, "[ParseJSONReadCloser] err:%v, req body: %s", errJSON.Error(), raw)
+		m800log.Debugf(ctx, "[ParseJSONReadCloser] err: %v", errJSON.Error())
 		return gopkg.NewCodeError(CodeParseJSON, errJSON.Error())
 	}
 	return nil
@@ -84,7 +84,9 @@ func ParseJSONReadCloser(ctx goctx.Context, readCloser io.ReadCloser, v interfac
 
 // ParseJSON
 func ParseJSON(ctx goctx.Context, data []byte, v interface{}) gopkg.CodeError {
-	err := json.Unmarshal(data, v)
+	d := json.NewDecoder(bytes.NewBuffer(data))
+	d.UseNumber()
+	err := d.Decode(v)
 	if err != nil {
 		m800log.Debugf(ctx, "[ParseJSON] err:%v, input: %s", err.Error(), string(data))
 		return gopkg.NewCodeError(CodeParseJSON, err.Error())

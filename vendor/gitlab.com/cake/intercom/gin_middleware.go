@@ -75,28 +75,33 @@ func SetSlowReqThreshold(t time.Duration) {
 func M800Recovery(panicCode int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
+			handlerName := "M800Recovery"
 			if err := recover(); err != nil {
-				// Check for a broken connection, as it is not really a
-				// condition that warrants a panic stack trace.
+				// Check for a broken connection, as it is not really a condition that warrants a panic stack trace.
 				var brokenPipe bool
 				var errSyscall *os.SyscallError
 				if ne, ok := err.(error); ok && errors.As(ne, &errSyscall) &&
-					(strings.Contains(strings.ToLower(errSyscall.Error()), "broken pipe") || strings.Contains(strings.ToLower(errSyscall.Error()), "connection reset by peer")) {
+					(strings.Contains(strings.ToLower(errSyscall.Error()), "broken pipe") ||
+						strings.Contains(strings.ToLower(errSyscall.Error()), "connection reset by peer")) {
 					brokenPipe = true
 				}
+
 				stack := stack(3)
-				panicStr := fmt.Sprintf("[Recovery] %s panic recovered:\n%s\n%s",
-					timeFormat(time.Now()), err, stack)
+				panicStr := fmt.Sprintf("[%s] recovered at: %s, panic err:\n%s,\nstack:\n%s",
+					handlerName, timeFormat(time.Now()), err, stack)
 
 				ctx := GetContextFromGin(c)
 				ctx.Set(goctx.LogKeyErrorCode, panicCode)
-				m800log.Error(ctx, panicStr)
+
 				// If the connection is dead, we can't write a status to it.
 				if brokenPipe {
+					brokenPipeCounts.Inc()
 					c.Error(err.(error)) // nolint: errcheck
 					c.Abort()
 					return
 				}
+
+				m800log.Error(ctx, panicStr)
 				GinErrorCodeMsg(c, panicCode, fmt.Sprintf("%s", err))
 			}
 		}()
@@ -189,9 +194,9 @@ func AccessMiddleware(timeout time.Duration, localNamespace string, opts ...*Log
 		ctx.Set(goctx.LogKeyHTTPMethod, c.Request.Method)
 		ctx.Set(goctx.LogKeyURI, c.Request.URL.RequestURI())
 		// init if no cid
-		cid, ok := ctx.GetString(goctx.LogKeyCID)
+		_, ok := ctx.GetString(goctx.LogKeyCID)
 		if !ok {
-			cid, _ = ctx.GetCID()
+			cid, _ := ctx.GetCID()
 			c.Request.Header.Set(goctx.HTTPHeaderCID, cid)
 		}
 
@@ -222,14 +227,16 @@ func AccessMiddleware(timeout time.Duration, localNamespace string, opts ...*Log
 		c.Next()
 		select {
 		case <-ctx.Done():
-			// timeout case
-			m800log.Errorf(ctx, "api timeout, cid:%s", cid)
+			m800log.Info(ctx, "ctx done case")
 		default:
 			// common case
 		}
-
-		if time.Since(start) > slowReqDuration {
+		elapsed := time.Since(start)
+		if elapsed > slowReqDuration {
 			ext.SamplingPriority.Set(sp, uint16(1))
+		}
+		if elapsed > timeout {
+			m800log.Errorf(ctx, "api timeout, timeout setting: %s, elapsed: %s", timeout, elapsed)
 		}
 
 		if traceErrCode := c.GetInt(goctx.LogKeyErrorCode); traceErrCode != 0 {

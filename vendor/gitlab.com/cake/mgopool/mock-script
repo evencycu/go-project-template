@@ -1,1 +1,0 @@
-mockgen -source=./access.go -destination=./mock/access_mock.go -package=mock s

@@ -13,7 +13,7 @@ import (
 	"gitlab.com/cake/gopkg"
 	"gitlab.com/cake/intercom"
 	"gitlab.com/cake/m800log"
-	"gitlab.com/cake/mgopool"
+	"gitlab.com/cake/mgopool/v3"
 	// new_err "gitlab.com/cake/go-project-template/examples/err"
 	// "gitlab.com/cake/go-project-template/examples/metric_api"
 )

@@ -25,13 +25,16 @@ const (
 	HTTPHeaderDeviceID       = "x-m800-deviceid"
 	HTTPHeaderWebTabID       = "x-m800-tabid"
 
-	HTTPHeaderUserHome    = "x-m800-usr-home"
-	HTTPHeaderServiceHome = "x-m800-svc-home"
-	HTTPHeaderServiceType = "x-m800-svc-type"
-	HTTPHeaderUserRole    = "x-m800-usr-role"
-	HTTPHeaderUserGroup   = "x-m800-usr-group"
-	HTTPHeaderUserAnms    = "x-m800-usr-anms"
-	HTTPHeaderCustomRole  = "x-m800-custom-role" // This field is for customer-defined role.
+	HTTPHeaderUserHome       = "x-m800-usr-home"
+	HTTPHeaderServiceHome    = "x-m800-svc-home"
+	HTTPHeaderServiceType    = "x-m800-svc-type"
+	HTTPHeaderUserRole       = "x-m800-usr-role"
+	HTTPHeaderUserGroup      = "x-m800-usr-group"
+	HTTPHeaderUserAnms       = "x-m800-usr-anms"
+	HTTPHeaderCustomRole     = "x-m800-custom-role" // This field is for customer-defined role.
+	HTTPHeaderUserDataScope  = "x-m800-usr-data-scope"
+	HTTPHeaderUserDepartment = "x-m800-usr-dept"
+	HTTPHeaderSuperAdmin     = "x-m800-usr-super-admin"
 
 	HTTPHeaderInternalCaller = "x-m800-internal-caller"
 
@@ -52,14 +55,20 @@ const (
 	LogKeyDeviceID       = "deviceID"
 	LogKeyWebTabID       = "webTabID"
 
-	LogKeyUserHome       = "usrHome"
-	LogKeyServiceHome    = "svcHome"
-	LogKeyServiceType    = "svcType"
-	LogKeyUserRole       = "usrRole"
-	LogKeyUserGroup      = "usrGroup"
-	LogKeyUserAnms       = "usrAnms"
-	LogKeyCustomRole     = "customRole"
-	LogKeyInternalCaller = "internalCaller"
+	LogKeyUserHome                    = "usrHome"
+	LogKeyServiceHome                 = "svcHome"
+	LogKeyServiceType                 = "svcType"
+	LogKeyUserRole                    = "usrRole"
+	LogKeyUserGroup                   = "usrGroup"
+	LogKeyUserAnms                    = "usrAnms"
+	LogKeyCustomRole                  = "customRole"
+	LogKeyUserDepartment              = "usrDept"
+	LogKeyUserDataScope               = "usrDataScope"
+	LogKeyInternalCaller              = "internalCaller"
+	LogKeyAuditFeatureName            = "feature"
+	LogKeyAuditNeedChangelog          = "changelog"
+	LogKeyRolePermissionAPIMappingKey = "permitKey"
+	LogKeySuperAdmin                  = "superadmin"
 	// LogKeyTimestamp is the time field key
 	LogKeyTimestamp = "time"
 	// LogKeyLevel is the level field key
@@ -141,6 +150,9 @@ func init() {
 		LogKeyUserAnms:       HTTPHeaderUserAnms,
 		LogKeyCustomRole:     HTTPHeaderCustomRole,
 		LogKeyInternalCaller: HTTPHeaderInternalCaller,
+		LogKeyUserDataScope:  HTTPHeaderUserDataScope,
+		LogKeyUserDepartment: HTTPHeaderUserDepartment,
+		LogKeySuperAdmin:     HTTPHeaderSuperAdmin,
 	}
 
 	hKMap = map[string]string{
@@ -163,6 +175,9 @@ func init() {
 		HTTPHeaderUserAnms:       LogKeyUserAnms,
 		HTTPHeaderCustomRole:     LogKeyCustomRole,
 		HTTPHeaderInternalCaller: LogKeyInternalCaller,
+		HTTPHeaderUserDataScope:  LogKeyUserDataScope,
+		HTTPHeaderUserDepartment: LogKeyUserDepartment,
+		HTTPHeaderSuperAdmin:     LogKeySuperAdmin,
 	}
 }
 

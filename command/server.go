@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -18,9 +19,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gitlab.com/cake/gopkg"
-	"gitlab.com/cake/gotrace"
+	"gitlab.com/cake/gotrace/v2"
 	"gitlab.com/cake/m800log"
-	"gitlab.com/cake/mgopool"
+	"gitlab.com/cake/mgopool/v3"
 	"gitlab.com/cake/redispool"
 
 	"gitlab.com/cake/go-project-template/apiserver"
@@ -41,10 +42,12 @@ func NewServerCmd() *cobra.Command {
 			defer log.Println("server main thread exiting")
 			log.Println("config path:", serverConfigFile)
 
-			var err error
-			err = initInfra(serverConfigFile)
+			closer, err := initInfra(serverConfigFile)
 			if err != nil {
 				panic("init infra error:" + err.Error())
+			}
+			if closer != nil {
+				defer closer.Close()
 			}
 			m800log.Infof(systemCtx, "[go-project-template] init config: %+v", viper.AllSettings())
 
@@ -105,36 +108,32 @@ func NewServerCmd() *cobra.Command {
 	return cmdAPI
 }
 
-func initInfra(config string) error {
+func initInfra(config string) (closer io.Closer, err error) {
 	viper.AutomaticEnv()
 	viper.SetConfigFile(config)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	err := viper.ReadInConfig()
+	err = viper.ReadInConfig()
 	if err != nil {
-		return err
+		return
 	}
 
 	// Init log
 	log.SetFlags(log.LstdFlags)
 	err = m800log.Initialize(viper.GetString("log.output"), viper.GetString("log.level"))
 	if err != nil {
-		return err
+		return
 	}
 
 	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), gopkg.GetAppName(), gopkg.GetVersion().Version, gpt.GetPhaseEnv(), gpt.GetNamespace())
 	_ = m800log.SetAccessLevel(viper.GetString("log.access_level"))
 	// Init tracer
-	err = initTracer()
-	if err != nil {
-		return err
-	}
-	return nil
+	return initTracer()
 }
 
-func initTracer() error {
+func initTracer() (closer io.Closer, err error) {
 	if !viper.GetBool("jaeger.enabled") {
 		log.Println("Jaeger disabled")
-		return nil
+		return
 	}
 	sConf := &jaegercfg.SamplerConfig{
 		Type:  jaeger.SamplerTypeRateLimiting,
@@ -147,10 +146,12 @@ func initTracer() error {
 		LogSpans:            viper.GetBool("jaeger.log_spans"),
 	}
 	log.Printf("Sampler Config:%+v\nReporterConfig:%+v\n", sConf, rConf)
-	if err := gotrace.InitJaeger(gopkg.GetAppName(), sConf, rConf); err != nil {
-		return fmt.Errorf("init tracer error:%s", err.Error())
+	closer, err = gotrace.InitJaeger(gopkg.GetAppName(), sConf, rConf)
+	if err != nil {
+		err = fmt.Errorf("init tracer error:%s", err.Error())
+		return
 	}
-	return nil
+	return
 }
 
 func newKafkaProducerConfig() *kafka.ConfigMap {

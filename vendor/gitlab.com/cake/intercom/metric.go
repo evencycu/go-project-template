@@ -14,6 +14,7 @@ func init() {
 	prometheus.MustRegister(externalUpstreamDuration)
 	prometheus.MustRegister(internalUpstreamCounter)
 	prometheus.MustRegister(internalUpstreamDuration)
+	prometheus.MustRegister(brokenPipeCounts)
 }
 
 const (
@@ -66,6 +67,15 @@ var (
 			Buckets:   prometheus.ExponentialBuckets(0.1, 2, 10),
 		},
 		[]string{labelHost, labelInternalCode},
+	)
+
+	brokenPipeCounts = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemUpstream,
+			Name:      "broken_pipes_counts",
+			Help:      "Total count of broken pipes",
+		},
 	)
 )
 

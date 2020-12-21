@@ -37,6 +37,7 @@ func init() {
 var stdLogger *logrus.Logger
 var accessLevel = logrus.InfoLevel
 var stackEnabled = false
+var blockKeys []string
 
 // SetLogger sets the standard logrus logger
 func SetLogger(l *logrus.Logger) {
@@ -116,6 +117,12 @@ func Initialize(output, level string) (err error) {
 	return
 }
 
+// Initialize inits the standard logger with log settings and the blockKeys slice for filtering goctx
+func InitializeWithKeysToBlock(output, level string, keysToBlock []string) error {
+	blockKeys = append(blockKeys, keysToBlock...)
+	return Initialize(output, level)
+}
+
 // SetStackTrace is used to start log the stack info
 func SetStackTrace(enable bool) {
 	stackEnabled = enable
@@ -152,6 +159,30 @@ func Info(ctx goctx.Context, v ...interface{}) {
 	// fast return if level not enough
 	if stdLogger.Level >= logrus.InfoLevel {
 		GetGeneralEntry(ctx).Info(v...)
+	}
+}
+
+// Warn logs the warn level general log
+func Warn(ctx goctx.Context, v ...interface{}) {
+	// fast return if level not enough
+	if stdLogger.Level >= logrus.WarnLevel {
+		GetGeneralEntry(ctx).Warn(v...)
+	}
+}
+
+// Fatal logs the fatal level general log
+func Fatal(ctx goctx.Context, v ...interface{}) {
+	// fast return if level not enough
+	if stdLogger.Level >= logrus.FatalLevel {
+		GetGeneralEntry(ctx).Fatal(v...)
+	}
+}
+
+// Panic logs the panic level general log
+func Panic(ctx goctx.Context, v ...interface{}) {
+	// fast return if level not enough
+	if stdLogger.Level >= logrus.PanicLevel {
+		GetGeneralEntry(ctx).Panic(v...)
 	}
 }
 
@@ -197,6 +228,21 @@ func Infof(ctx goctx.Context, format string, v ...interface{}) {
 	}
 }
 
+// Warnf formated the warn level log with format
+func Warnf(ctx goctx.Context, format string, v ...interface{}) {
+	GetGeneralEntry(ctx).Warnf(format, v...)
+}
+
+// Fatalf formated the fatal level log with format
+func Fatalf(ctx goctx.Context, format string, v ...interface{}) {
+	GetGeneralEntry(ctx).Fatalf(format, v...)
+}
+
+// Panicf formated the panic level log with format
+func Panicf(ctx goctx.Context, format string, v ...interface{}) {
+	GetGeneralEntry(ctx).Panicf(format, v...)
+}
+
 // Logf formated logs by the given level with format
 func Logf(ctx goctx.Context, level logrus.Level, format string, v ...interface{}) {
 	// fast return if level not enough
@@ -217,14 +263,22 @@ func SpentTimeInMilliSecond(t time.Time) int64 {
 
 // GetAccessEntry return access log entry with preset fields
 func GetAccessEntry(ctx goctx.Context, start time.Time) *logrus.Entry {
-	return stdLogger.WithFields(logrus.Fields(ctx.Map())).
+	ctxMap := ctx.Map()
+	for _, key := range blockKeys {
+		delete(ctxMap, key)
+	}
+	return stdLogger.WithFields(logrus.Fields(ctxMap)).
 		WithField(goctx.LogKeyAccessTime, SpentTimeInMilliSecond(start)).
 		WithField(goctx.LogKeyLogType, AccessType)
 }
 
 // GetGeneralEntry return general log entry with preset fields
 func GetGeneralEntry(ctx goctx.Context) *logrus.Entry {
-	entry := stdLogger.WithFields(logrus.Fields(ctx.Map())).
+	ctxMap := ctx.Map()
+	for _, key := range blockKeys {
+		delete(ctxMap, key)
+	}
+	entry := stdLogger.WithFields(logrus.Fields(ctxMap)).
 		WithField(goctx.LogKeyLogType, GeneralType)
 	if stackEnabled {
 		entry = entry.WithField(stackField, stackTrace())
