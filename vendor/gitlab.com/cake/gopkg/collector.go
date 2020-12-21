@@ -9,6 +9,10 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+var (
+	modFileContent = ""
+)
+
 // NewModFileCollector returns a collector which exports metrics about current dependency information from go.mod file.
 func NewModFileCollector(program, goModPath string) *prometheus.GaugeVec {
 	gauge := prometheus.NewGaugeVec(
@@ -19,7 +23,7 @@ func NewModFileCollector(program, goModPath string) *prometheus.GaugeVec {
 				program,
 			),
 		},
-		[]string{"name", "version", "indirect", "replacedBy"},
+		[]string{"name", "version", "indirect", "replacedBy", "program"},
 	)
 
 	data, err := ioutil.ReadFile(goModPath)
@@ -46,7 +50,7 @@ func NewModFileCollector(program, goModPath string) *prometheus.GaugeVec {
 		if v, ok := replacedList[pkg.Mod.Path]; ok {
 			replacedBy = v
 		}
-		gauge.WithLabelValues(pkg.Mod.Path, pkg.Mod.Version, strconv.FormatBool(pkg.Indirect), replacedBy).Set(1)
+		gauge.WithLabelValues(pkg.Mod.Path, pkg.Mod.Version, strconv.FormatBool(pkg.Indirect), replacedBy, program).Set(1)
 	}
 
 	return gauge

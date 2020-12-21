@@ -230,7 +230,7 @@ gitlab.com/cake/gin-prometheus
 # gitlab.com/cake/goctx v1.6.14
 ## explicit
 gitlab.com/cake/goctx
-# gitlab.com/cake/gopkg v1.4.6
+# gitlab.com/cake/gopkg v1.4.7
 ## explicit
 gitlab.com/cake/gopkg
 # gitlab.com/cake/gotrace/v2 v2.1.2
