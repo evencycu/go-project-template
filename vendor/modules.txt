@@ -32,9 +32,10 @@ github.com/beorn7/perks/quantile
 github.com/cenkalti/backoff/v3
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/confluentinc/confluent-kafka-go v1.1.0
+# github.com/confluentinc/confluent-kafka-go v1.5.2
 ## explicit
 github.com/confluentinc/confluent-kafka-go/kafka
+github.com/confluentinc/confluent-kafka-go/kafka/librdkafka
 # github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6
 github.com/containerd/continuity/pathdriver
 # github.com/docker/go-connections v0.4.0
@@ -227,7 +228,7 @@ github.com/xdg/stringprep
 # gitlab.com/cake/gin-prometheus v1.1.4
 ## explicit
 gitlab.com/cake/gin-prometheus
-# gitlab.com/cake/goctx v1.6.14
+# gitlab.com/cake/goctx v1.6.16
 ## explicit
 gitlab.com/cake/goctx
 # gitlab.com/cake/gopkg v1.4.7
@@ -242,7 +243,7 @@ gitlab.com/cake/intercom
 # gitlab.com/cake/m800log v1.5.0
 ## explicit
 gitlab.com/cake/m800log
-# gitlab.com/cake/mgopool/v3 v3.1.18
+# gitlab.com/cake/mgopool/v3 v3.2.0
 ## explicit
 gitlab.com/cake/mgopool/v3
 gitlab.com/cake/mgopool/v3/compat

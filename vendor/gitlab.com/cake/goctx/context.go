@@ -157,9 +157,13 @@ func (c *MapContext) Map() (ret map[string]interface{}) {
 func (c *MapContext) MapString() (ret map[string]string) {
 	ret = make(map[string]string)
 	c.m.Range(func(k, v interface{}) bool {
-		if v, ok := c.Value(k).(string); ok {
-			ret[k.(string)] = v
+		switch v.(type) {
+		case string:
+			ret[k.(string)] = v.(string)
+		case []string:
+			ret[k.(string)] = strings.Join(v.([]string), ",")
 		}
+
 		return true
 	})
 

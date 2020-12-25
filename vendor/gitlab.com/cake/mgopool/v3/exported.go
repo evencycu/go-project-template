@@ -60,6 +60,10 @@ func Ping(ctx goctx.Context) (err gopkg.CodeError) {
 	return std.Ping(ctx)
 }
 
+func PingPref(ctx goctx.Context, pref *readpref.ReadPref) (err gopkg.CodeError) {
+	return std.PingPref(ctx, pref)
+}
+
 // GetCollectionNames return all collection names in the db.
 func GetCollectionNames(ctx goctx.Context, dbName string) (names []string, err gopkg.CodeError) {
 	return std.GetCollectionNames(ctx, dbName)

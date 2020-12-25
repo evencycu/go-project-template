@@ -10,13 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/cake/mgopool/v3/compat"
-
 	opentracing "github.com/opentracing/opentracing-go"
-
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gopkg"
 	"gitlab.com/cake/gotrace/v2"
+	"gitlab.com/cake/m800log"
+	"gitlab.com/cake/mgopool/v3/compat"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -92,6 +91,7 @@ type MongoPool interface {
 	Recover() error
 
 	Ping(ctx goctx.Context) (err gopkg.CodeError)
+	PingPref(ctx goctx.Context, pref *readpref.ReadPref) (err gopkg.CodeError)
 	GetCollectionNames(ctx goctx.Context, dbName string) (names []string, err gopkg.CodeError)
 	CollectionCount(ctx goctx.Context, dbName, collection string) (n int, err gopkg.CodeError)
 	Run(ctx goctx.Context, cmd interface{}, result interface{}) gopkg.CodeError
@@ -160,7 +160,7 @@ func CreateMongoSpan(ctx goctx.Context, funcName string) opentracing.Span {
 func badConnection(s string) bool {
 	switch {
 	// dc, cluster not healthy
-	case strings.Contains(s, MongoMsgNotMaster), strings.Contains(s, MongoMsgNoReachableServers), strings.Contains(s, MongoMsgEOF), strings.Contains(s, MongoMsgKernelEOF), strings.Contains(s, MongoMsgClose):
+	case strings.Contains(s, MongoMsgNotMaster), strings.Contains(s, MongoMsgNoReachableServers), strings.Contains(s, MongoMsgEOF), strings.Contains(s, MongoMsgKernelEOF), strings.Contains(s, MongoMsgClose), strings.Contains(s, MongoMsgServerSelectionError):
 		return true
 		// no host case
 	case strings.HasPrefix(s, MongoMsgNoHost), strings.HasPrefix(s, MongoMsgNoHost2), strings.HasPrefix(s, MongoMsgWriteUnavailable):
@@ -224,21 +224,30 @@ func (p *Pool) resultHandling(err error, ctx goctx.Context) gopkg.CodeError {
 	case errorString == MongoMsgGetPoolTimeout:
 		poolTimeoutCounter.WithLabelValues(p.name).Inc()
 		code = PoolTimeout
-	case strings.Contains(errorString, MongoMsgContextTimeout):
+	case strings.Contains(errorString, MongoMsgContextTimeout), strings.Contains(errorString, MongoMsgTimeout):
 		code = Timeout
-	case strings.Contains(errorString, MongoMsgTimeout):
-		code = Timeout
-		errorString = MongoMsgTimeout
+		m800log.Errorf(ctx, "[op timeout] error:%s", errorString)
+		errorString = MgopoolOpTimeout
 	case badConnection(errorString):
 		code = APIConnectDatabase
+		m800log.Errorf(ctx, "[badConnection] error:%s", errorString)
+		errorString = MgopoolBadConnection
 	}
 
 	ctx.Set(goctx.LogKeyErrorCode, code)
 	return gopkg.NewCarrierCodeError(code, errorString)
 }
 
+// Ping change default behavior to primary
 func (p *Pool) Ping(ctx goctx.Context) (err gopkg.CodeError) {
-	errPing := p.client.Ping(ctx, nil)
+	errPing := p.client.Ping(ctx, readpref.Primary())
+	err = p.resultHandling(errPing, ctx)
+	return
+}
+
+// PingPref ping with given pref, nil would use client pref
+func (p *Pool) PingPref(ctx goctx.Context, pref *readpref.ReadPref) (err gopkg.CodeError) {
+	errPing := p.client.Ping(ctx, pref)
 	err = p.resultHandling(errPing, ctx)
 	return
 }

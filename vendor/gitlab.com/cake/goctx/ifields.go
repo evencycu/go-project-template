@@ -202,7 +202,11 @@ func GetContextFromMap(p map[string]interface{}) Context {
 func GetContextFromMapString(p map[string]string) Context {
 	c := Background()
 	for k, v := range p {
-		c.Set(k, v)
+		if k == LogKeyUserRole {
+			c.Set(k, strings.Split(v, ","))
+		} else {
+			c.Set(k, v)
+		}
 	}
 	return c
 }

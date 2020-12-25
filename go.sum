@@ -31,8 +31,8 @@ github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd h1:qMd81Ts1T2OTKmB4acZcyKaMtRnY5Y44NuXGX2GFJ1w=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
-github.com/confluentinc/confluent-kafka-go v1.1.0 h1:HIW7Nkm8IeKRotC34mGY06DwQMf9Mp9PZMyqDxid2wI=
-github.com/confluentinc/confluent-kafka-go v1.1.0/go.mod h1:u2zNLny2xq+5rWeTQjFHbDzzNuba4P1vo31r9r4uAdg=
+github.com/confluentinc/confluent-kafka-go v1.5.2 h1:l+qt+a0Okmq0Bdr1P55IX4fiwFJyg0lZQmfHkAFkv7E=
+github.com/confluentinc/confluent-kafka-go v1.5.2/go.mod h1:u2zNLny2xq+5rWeTQjFHbDzzNuba4P1vo31r9r4uAdg=
 github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6 h1:NmTXa/uVnDyp0TY5MKi197+3HWcnYWfnHGyaFthlnGw=
 github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6/go.mod h1:GL3xCUCBDV3CZiTSEKksMWbLE66hEyuu9qyDOOqM47Y=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
@@ -320,8 +320,9 @@ gitlab.com/cake/goctx v1.4.2/go.mod h1:6V51OE/m27AT8bthzchO/NvCaWQpy4qthE82zhWLu
 gitlab.com/cake/goctx v1.4.7/go.mod h1:6V51OE/m27AT8bthzchO/NvCaWQpy4qthE82zhWLufs=
 gitlab.com/cake/goctx v1.6.2/go.mod h1:ToGdITRU7l34WT2VaQdfkmLwGT06eBOQBzBjY4Rt62w=
 gitlab.com/cake/goctx v1.6.13/go.mod h1:qqOJEzmdTr0KzjeoU59wbEbmWw+CXd6HuHPdzfsnGAU=
-gitlab.com/cake/goctx v1.6.14 h1:WhilpH56tnGxOqbZ6bcATZHhoRRcUFsKk0BEUjVF35U=
 gitlab.com/cake/goctx v1.6.14/go.mod h1:qqOJEzmdTr0KzjeoU59wbEbmWw+CXd6HuHPdzfsnGAU=
+gitlab.com/cake/goctx v1.6.16 h1:sSJ73UZ3oP0SaA+jA3WF971jJcjf7URJQsj7xXNJgwY=
+gitlab.com/cake/goctx v1.6.16/go.mod h1:qqOJEzmdTr0KzjeoU59wbEbmWw+CXd6HuHPdzfsnGAU=
 gitlab.com/cake/gopkg v1.4.4/go.mod h1:QHDbHuzYK1c0kxuDhf5+g0Bd/e7DpHscAkOVVaqWchA=
 gitlab.com/cake/gopkg v1.4.7 h1:SobJ0AM5JQMJP4bBVHg2VHBkytG2Ilei31eapdwYnuA=
 gitlab.com/cake/gopkg v1.4.7/go.mod h1:hWwTcMdV1boxropxfosOkIcYToxwniRiYZb0lHB1e60=
@@ -333,8 +334,8 @@ gitlab.com/cake/m800log v1.4.5/go.mod h1:ftFjzhf/E/zsbL3J74HMySDRFtYbfczMXr8mu4g
 gitlab.com/cake/m800log v1.4.10/go.mod h1:XD4ZrVdRJFX5DPh20f6wR+bDgaUSD2PS9MPc1p/mH6o=
 gitlab.com/cake/m800log v1.5.0 h1:k0MK4vnYP+zkm0wE2321ttfXLqVCCl+oO8Z35X1Pjng=
 gitlab.com/cake/m800log v1.5.0/go.mod h1:XD4ZrVdRJFX5DPh20f6wR+bDgaUSD2PS9MPc1p/mH6o=
-gitlab.com/cake/mgopool/v3 v3.1.18 h1:m6Pgsupya52vI1/WXVdfhc//xaShI3SS7J/oJy57e6c=
-gitlab.com/cake/mgopool/v3 v3.1.18/go.mod h1:FV5Ex15CsWvqc6pMI5TvNmc+BRX6Yy0fOvxC1/DtzCk=
+gitlab.com/cake/mgopool/v3 v3.2.0 h1:UlMla4ghee7DX/CXUnmsloWINblEYA+iltdSfV0Tv0I=
+gitlab.com/cake/mgopool/v3 v3.2.0/go.mod h1:FV5Ex15CsWvqc6pMI5TvNmc+BRX6Yy0fOvxC1/DtzCk=
 gitlab.com/cake/redispool v0.1.20 h1:FX1QL8UIqLhkss3vt5O7mEWPQCmjEcA35j9MaF07Yjs=
 gitlab.com/cake/redispool v0.1.20/go.mod h1:AAE/UBb3I8yzFb08fWld5LiPZtfM3rMJiO0JoLNBPNw=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
