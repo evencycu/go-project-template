@@ -1,4 +1,4 @@
-FROM artifactory.maaii.com/lc-docker-local/golang:1.14.6-alpine-kafka as builder
+FROM artifactory.maaii.com/lc-docker-local/golang:1.15.6-alpine-kafka as builder
 WORKDIR /go/src/
 
 # Install dependency
