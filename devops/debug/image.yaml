@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-project-template
+spec:
+  template:
+    spec:
+      containers:
+        - name: go-project-template
+          image: artifactory.maaii.com/lc-docker-local/go-project-template-debug:latest

@@ -1,0 +1,17 @@
+apiVersion: skaffold/v1beta7
+kind: Config
+build:
+  tagPolicy:
+    sha256: {}
+  artifacts:
+  - image: artifactory.maaii.com/lc-docker-local/go-project-template-debug
+    docker:  # beta describes an artifact built from a Dockerfile.
+      dockerfile: devops/debug/Dockerfile #locates the Dockerfile relative to workspace.
+      target:  # Dockerfile target name to build.
+      buildArgs:  # arguments passed to the docker build.
+        APPNAME: go-project-template # 
+      #   key2: value2 # 
+
+deploy:
+  kustomize: 
+    path: devops/debug

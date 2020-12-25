@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-project-template
+spec:
+  template:
+    spec:
+      containers:
+        - name: go-project-template
+          livenessProbe:
+            $patch: delete
+          readinessProbe:
+            $patch: delete

@@ -3,6 +3,7 @@ PKGPATH=gitlab.com/cake/gopkg
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
 CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
+SKAFFOLD_DEBUG_CONF=devops/debug/skaffold.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
 DEVOPSTOOL=$(GOPATH)/src/gitlab.com/cake/DevOps-Tools
 APPCONFIG=$(GOPATH)/src/gitlab.com/cake/app-config
@@ -77,6 +78,9 @@ skrun: modvendor
 skdelete:
 	@echo "Delete skaffold run..."
 	skaffold delete -f $(SKAFFOLD_CONF)
+
+skdebug: modvendor
+	skaffold dev -f $(SKAFFOLD_DEBUG_CONF) --trigger manual
 
 apib:
 	@echo "Make sure you have install snowboard"
