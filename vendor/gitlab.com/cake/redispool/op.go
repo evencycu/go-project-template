@@ -230,16 +230,27 @@ func (p *Pool) HKeys(key string) ([]string, error) {
 	return redis.Strings(c.Do(RedisHKeys, key))
 }
 
-func (p *Pool) HMGetJSON(key string, values map[string]interface{}) error {
+// values should be the type of *map[string]struct
+// if field data not in redis, values will not include that key
+func (p *Pool) HMGetJSON(key string, fields []string, values interface{}) error {
 	c := p.pool.Get()
 	defer c.Close()
+	// is a map[string]interface{}
+	valuesv := reflect.ValueOf(values)
+	if valuesv.Kind() != reflect.Ptr {
+		return errors.New("values argument must be a pointer of map")
+	}
+	if valuesv.Elem().Kind() != reflect.Map {
+		return errors.New("values argument must be a pointer of map")
+	}
+	if valuesv.Elem().Type().Key().Kind() != reflect.String {
+		return errors.New("key of the map must be string type")
+	}
 
 	fs := make([]interface{}, 0)
 	fs = append(fs, key)
-	fields := make([]string, 0)
-	for k, _ := range values {
-		fs = append(fs, k)
-		fields = append(fields, k)
+	for _, field := range fields {
+		fs = append(fs, field)
 	}
 
 	vs, err := redis.Values(c.Do(RedisHMGet, fs...))
@@ -247,24 +258,41 @@ func (p *Pool) HMGetJSON(key string, values map[string]interface{}) error {
 		return err
 	}
 
+	// Key doesn't exist
+	if len(vs) == 0 {
+		return nil
+	}
+
+	counter := 0
+
+	resultBytes := []byte{'{'}
 	for i, v := range vs {
 		if v == nil {
-			values[fields[i]] = nil
 			continue
 		}
-
+		counter++
 		bytes, ok := v.([]byte)
 		if !ok {
 			errMsg := fmt.Sprintf("v %T is not of type bytes", v)
 			return errors.New(errMsg)
 		}
-
-		err = json.Unmarshal(bytes, values[fields[i]])
-		if err != nil {
-			return err
-		}
+		resultBytes = append(resultBytes, '"')
+		resultBytes = append(resultBytes, []byte(fields[i])...)
+		resultBytes = append(resultBytes, '"')
+		resultBytes = append(resultBytes, byte(':'))
+		resultBytes = append(resultBytes, bytes...)
+		resultBytes = append(resultBytes, byte(','))
 	}
+	resultBytes[len(resultBytes)-1] = '}'
 
+	// No valid fields
+	if counter == 0 {
+		return nil
+	}
+	err = json.Unmarshal(resultBytes, values)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -275,17 +303,32 @@ func (p *Pool) HLen(key string) (int, error) {
 	return redis.Int(c.Do(RedisHLen, key))
 }
 
-func (p *Pool) HMSetJSON(key string, values map[string]interface{}) error {
+// values should be the type of map[string]struct
+func (p *Pool) HMSetJSON(key string, values interface{}) error {
 	c := p.pool.Get()
 	defer c.Close()
+	// is a map[string]interface{}
+	valuesv := reflect.ValueOf(values)
+	if valuesv.Kind() != reflect.Map {
+		return errors.New("values argument must be a map")
+	}
+	for _, k := range valuesv.MapKeys() {
+		if k.Kind() != reflect.String {
+			return errors.New("key of the map must be string type")
+		}
+	}
 
 	fs := make([]interface{}, 0)
 	fs = append(fs, key)
-	for k, v := range values {
-		bytes, err := json.Marshal(v)
+	iter := valuesv.MapRange()
+	for iter.Next() {
+		k := iter.Key()
+		v := iter.Value()
+		bytes, err := json.Marshal(v.Interface())
 		if err != nil {
 			return err
 		}
+
 		fs = append(fs, k)
 		fs = append(fs, bytes)
 	}
@@ -309,52 +352,62 @@ func (p *Pool) HDel(key, field string) (int, error) {
 	return redis.Int(c.Do(RedisHDel, key, field))
 }
 
-func (p *Pool) HGetAllJSON(key string, result map[string]interface{}, toType reflect.Type) error {
+// values should be the type of *map[string]struct
+func (p *Pool) HGetAllJSON(key string, result interface{}) error {
 	c := p.pool.Get()
 	defer c.Close()
+	// is a map[string]interface{}
+	resultv := reflect.ValueOf(result)
+	if resultv.Kind() != reflect.Ptr {
+		return errors.New("result argument must be a pointer of map")
+	}
+	if resultv.Elem().Kind() != reflect.Map {
+		return errors.New("result argument must be a pointer of map")
+	}
+	if resultv.Elem().Type().Key().Kind() != reflect.String {
+		return errors.New("key of the map must be string type")
+	}
 
 	vs, err := redis.Values(c.Do(RedisHGetAll, key))
 	if err != nil {
 		return err
 	}
 
-	k := ""
+	// Key doesn't exist
+	if len(vs) == 0 {
+		return nil
+	}
+	resultBytes := []byte{'{'}
 	for i, v := range vs {
 		if i%2 == 0 {
 			//key
 			if keyValue, ok := v.([]byte); !ok {
 				return fmt.Errorf("unknown key type %+v", v)
 			} else {
-				k = string(keyValue)
+				resultBytes = append(resultBytes, '"')
+				resultBytes = append(resultBytes, keyValue...)
+				resultBytes = append(resultBytes, '"')
 			}
 		}
 
 		if i%2 == 1 {
 			//value
-			if v == nil {
-				result[k] = nil
-				continue
-			}
-
 			bytes, ok := v.([]byte)
 			if !ok {
 				errMsg := fmt.Sprintf("v %T is not of type bytes", v)
 				return errors.New(errMsg)
 			}
-
-			reflectValue := reflect.New(toType)
-
-			newObj := reflectValue.Interface()
-			err = json.Unmarshal(bytes, newObj)
-			if err != nil {
-				return err
-			}
-
-			result[k] = newObj
+			resultBytes = append(resultBytes, ':')
+			resultBytes = append(resultBytes, bytes...)
+			resultBytes = append(resultBytes, ',')
 		}
 
 	}
-
+	resultBytes[len(resultBytes)-1] = '}'
+	err = json.Unmarshal(resultBytes, result)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

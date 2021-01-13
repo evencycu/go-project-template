@@ -76,6 +76,7 @@ const (
 
 var (
 	emptyBulkResult = BulkResult{}
+	noOpSpan        = opentracing.NoopTracer{}.StartSpan("")
 )
 
 type MongoPool interface {
@@ -153,7 +154,10 @@ type MongoCursor interface {
 	TryNext(ctx context.Context) bool
 }
 
-func CreateMongoSpan(ctx goctx.Context, funcName string) opentracing.Span {
+func createMongoSpan(ctx goctx.Context, funcName string) opentracing.Span {
+	if ctx.GetSpan() == nil {
+		return noOpSpan
+	}
 	return gotrace.CreateChildOfSpan(ctx, funcName)
 }
 
@@ -205,7 +209,7 @@ func (p *Pool) resultHandling(err error, ctx goctx.Context) gopkg.CodeError {
 		errorString = "document already exists:" + strings.Replace(errorString, MongoMsgE11000, "", 1)
 	case strings.HasSuffix(errorString, MongoMsgCollectionConflict):
 		code = CollectionConflict
-	case errorString == MongoMsgDocNil:
+	case errorString == MongoMsgDocNil, strings.HasPrefix(errorString, MongoMsgInvaildBson), strings.HasPrefix(errorString, MongoMsgBadValue):
 		code = BadInputDoc
 	case strings.Contains(errorString, MongoMsgArray), strings.Contains(errorString, MongoMsgNonEmpty), strings.Contains(errorString, MongoMsgInArray):
 		code = QueryInputArray
@@ -263,7 +267,7 @@ func (p *Pool) CollectionCount(ctx goctx.Context, dbName, collection string) (n 
 	start := time.Now()
 	defer updateMetrics(operationLabelCollectionCount, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncCollectionCount)
+	sp := createMongoSpan(ctx, FuncCollectionCount)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -281,7 +285,7 @@ func (p *Pool) Run(ctx goctx.Context, cmd interface{}, result interface{}) (err 
 	start := time.Now()
 	defer updateMetrics(operationLabelRun, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncRun)
+	sp := createMongoSpan(ctx, FuncRun)
 	defer sp.Finish()
 
 	errDB := p.client.Database("admin", databaseOptions).RunCommand(ctx, cmd).Decode(result)
@@ -299,7 +303,7 @@ func (p *Pool) DBRun(ctx goctx.Context, dbName string, cmd, result interface{}) 
 	start := time.Now()
 	defer updateMetrics(operationLabelDBRun, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncDBRun)
+	sp := createMongoSpan(ctx, FuncDBRun)
 	defer sp.Finish()
 
 	errDB := p.client.Database(dbName, databaseOptions).RunCommand(ctx, cmd).Decode(result)
@@ -318,7 +322,7 @@ func (p *Pool) Insert(ctx goctx.Context, dbName, collection string, doc interfac
 	defer updateMetrics(operationLabelInsert, start, &err)
 
 	// Insert document to collection
-	sp := CreateMongoSpan(ctx, FuncInsert)
+	sp := createMongoSpan(ctx, FuncInsert)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -337,7 +341,7 @@ func (p *Pool) Distinct(ctx goctx.Context, dbName, collection string, selector b
 	start := time.Now()
 	defer updateMetrics(operationLabelDistinct, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncDistinct)
+	sp := createMongoSpan(ctx, FuncDistinct)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -365,7 +369,7 @@ func (p *Pool) Remove(ctx goctx.Context, dbName, collection string, selector int
 	start := time.Now()
 	defer updateMetrics(operationLabelRemove, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncRemove)
+	sp := createMongoSpan(ctx, FuncRemove)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -388,7 +392,7 @@ func (p *Pool) RemoveAll(ctx goctx.Context, dbName, collection string, selector 
 	start := time.Now()
 	defer updateMetrics(operationLabelRemoveAll, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncRemoveAll)
+	sp := createMongoSpan(ctx, FuncRemoveAll)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -411,7 +415,7 @@ func (p *Pool) ReplaceOne(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelReplaceOne, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncUpdate)
+	sp := createMongoSpan(ctx, FuncUpdate)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -439,7 +443,7 @@ func (p *Pool) Update(ctx goctx.Context, dbName, collection string, selector int
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdate, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncUpdate)
+	sp := createMongoSpan(ctx, FuncUpdate)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -469,7 +473,7 @@ func (p *Pool) UpdateAll(ctx goctx.Context, dbName, collection string, selector 
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdateAll, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncUpdateAll)
+	sp := createMongoSpan(ctx, FuncUpdateAll)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -490,7 +494,7 @@ func (p *Pool) UpdateId(ctx goctx.Context, dbName, collection string, id interfa
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdateId, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncUpdateId)
+	sp := createMongoSpan(ctx, FuncUpdateId)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -509,7 +513,7 @@ func (p *Pool) UpdateWithArrayFilters(ctx goctx.Context, dbName, collection stri
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdateWithArrayFilters, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncUpdateWithArrayFilters)
+	sp := createMongoSpan(ctx, FuncUpdateWithArrayFilters)
 	defer sp.Finish()
 
 	if reflect.TypeOf(arrayFilters).Kind() != reflect.Slice {
@@ -542,7 +546,7 @@ func (p *Pool) Upsert(ctx goctx.Context, dbName, collection string, selector int
 	start := time.Now()
 	defer updateMetrics(operationLabelUpsert, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncUpsert)
+	sp := createMongoSpan(ctx, FuncUpsert)
 	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
@@ -566,7 +570,7 @@ func (p *Pool) BulkInsert(ctx goctx.Context, dbName, collection string, document
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkInsert, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncBulkInsert)
+	sp := createMongoSpan(ctx, FuncBulkInsert)
 	defer sp.Finish()
 
 	if len(documents) == 0 {
@@ -601,7 +605,7 @@ func (p *Pool) BulkUpsert(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpsert, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncBulkUpsert)
+	sp := createMongoSpan(ctx, FuncBulkUpsert)
 	defer sp.Finish()
 
 	if len(selectors) == 0 || len(documents) == 0 {
@@ -649,7 +653,7 @@ func (p *Pool) BulkUpdate(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpdate, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncBulkUpdate)
+	sp := createMongoSpan(ctx, FuncBulkUpdate)
 	defer sp.Finish()
 
 	if len(selectors) == 0 || len(documents) == 0 {
@@ -697,7 +701,7 @@ func (p *Pool) BulkInsertInterfaces(ctx goctx.Context, dbName, collection string
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkInsertInterfaces, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncBulkInsert)
+	sp := createMongoSpan(ctx, FuncBulkInsert)
 	defer sp.Finish()
 
 	if len(documents) == 0 {
@@ -724,7 +728,7 @@ func (p *Pool) BulkUpsertInterfaces(ctx goctx.Context, dbName, collection string
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpsertInterfaces, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncBulkUpsert)
+	sp := createMongoSpan(ctx, FuncBulkUpsert)
 	defer sp.Finish()
 
 	if len(selectors) == 0 || len(documents) == 0 {
@@ -762,7 +766,7 @@ func (p *Pool) BulkUpdateInterfaces(ctx goctx.Context, dbName, collection string
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpdateInterfaces, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncBulkUpdate)
+	sp := createMongoSpan(ctx, FuncBulkUpdate)
 	defer sp.Finish()
 
 	if len(selectors) == 0 || len(documents) == 0 {
@@ -810,7 +814,7 @@ func (p *Pool) BulkDelete(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkDelete, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncBulkDelete)
+	sp := createMongoSpan(ctx, FuncBulkDelete)
 	defer sp.Finish()
 
 	if len(selector) == 0 {
@@ -851,7 +855,7 @@ func (p *Pool) QueryCountWithOptions(ctx goctx.Context, dbName, collection strin
 	start := time.Now()
 	defer updateMetrics(operationLabelQueryCountWithOptions, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncQueryCount)
+	sp := createMongoSpan(ctx, FuncQueryCount)
 	defer sp.Finish()
 
 	opt := options.Count()
@@ -884,7 +888,7 @@ func (p *Pool) QueryAllWithCollation(ctx goctx.Context, dbName, collection strin
 	start := time.Now()
 	defer updateMetrics(operationLabelQueryAllWithOptions, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncQueryAll)
+	sp := createMongoSpan(ctx, FuncQueryAll)
 	defer sp.Finish()
 
 	findOpt := options.Find()
@@ -937,7 +941,7 @@ func (p *Pool) QueryOne(ctx goctx.Context, dbName, collection string, result, se
 	start := time.Now()
 	defer updateMetrics(operationLabelQueryOne, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncQueryOne)
+	sp := createMongoSpan(ctx, FuncQueryOne)
 	defer sp.Finish()
 
 	findOpt := options.FindOne()
@@ -966,7 +970,7 @@ func (p *Pool) FindAndModify(ctx goctx.Context, dbName, collection string, resul
 	start := time.Now()
 	defer updateMetrics(operationLabelFindAndModify, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncFindAndModify)
+	sp := createMongoSpan(ctx, FuncFindAndModify)
 	defer sp.Finish()
 
 	if result == nil {
@@ -1013,7 +1017,7 @@ func (p *Pool) FindAndReplace(ctx goctx.Context, dbName, collection string, resu
 	start := time.Now()
 	defer updateMetrics(operationLabelFindAndReplace, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncFindAndReplace)
+	sp := createMongoSpan(ctx, FuncFindAndReplace)
 	defer sp.Finish()
 
 	foarOpt := options.FindOneAndReplace()
@@ -1045,7 +1049,7 @@ func (p *Pool) FindAndRemove(ctx goctx.Context, dbName, collection string, resul
 	start := time.Now()
 	defer updateMetrics(operationLabelFindAndRemove, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncFindAndRemove)
+	sp := createMongoSpan(ctx, FuncFindAndRemove)
 	defer sp.Finish()
 
 	foarOpt := options.FindOneAndDelete()
@@ -1075,7 +1079,7 @@ func (p *Pool) Indexes(ctx goctx.Context, dbName, collection string) (result []m
 	start := time.Now()
 	defer updateMetrics(operationLabelIndexes, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncIndexes)
+	sp := createMongoSpan(ctx, FuncIndexes)
 	defer sp.Finish()
 
 	sp.SetTag(TraceTagCriteria, collection)
@@ -1095,7 +1099,7 @@ func (p *Pool) CreateIndex(ctx goctx.Context, dbName, collection string, key []s
 	start := time.Now()
 	defer updateMetrics(operationLabelCreateIndex, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncCreateIndex)
+	sp := createMongoSpan(ctx, FuncCreateIndex)
 	defer sp.Finish()
 
 	indexOpt := options.Index()
@@ -1126,7 +1130,7 @@ func (p *Pool) CreateTTLIndex(ctx goctx.Context, dbName, collection string, key 
 	start := time.Now()
 	defer updateMetrics(operationLabelCreateTTLIndex, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncCreateIndex)
+	sp := createMongoSpan(ctx, FuncCreateIndex)
 	defer sp.Finish()
 
 	indexOpt := options.Index()
@@ -1154,7 +1158,7 @@ func (p *Pool) EnsureIndex(ctx goctx.Context, dbName, collection string, index m
 	start := time.Now()
 	defer updateMetrics(operationLabelEnsureIndex, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncEnsureIndex)
+	sp := createMongoSpan(ctx, FuncEnsureIndex)
 	defer sp.Finish()
 
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
@@ -1247,7 +1251,7 @@ func (p *Pool) DropIndex(ctx goctx.Context, dbName, collection string, key []str
 	start := time.Now()
 	defer updateMetrics(operationLabelDropIndex, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncDropIndex)
+	sp := createMongoSpan(ctx, FuncDropIndex)
 	defer sp.Finish()
 
 	// get default index name
@@ -1266,7 +1270,7 @@ func (p *Pool) DropIndexName(ctx goctx.Context, dbName, collection, name string)
 	start := time.Now()
 	defer updateMetrics(operationLabelDropIndexName, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncDropIndexName)
+	sp := createMongoSpan(ctx, FuncDropIndexName)
 	defer sp.Finish()
 
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
@@ -1283,7 +1287,7 @@ func (p *Pool) CreateCollection(ctx goctx.Context, dbName, collection string, op
 	start := time.Now()
 	defer updateMetrics(operationLabelCreateCollection, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncCreateCollection)
+	sp := createMongoSpan(ctx, FuncCreateCollection)
 	defer sp.Finish()
 
 	errDB := p.client.Database(dbName, databaseOptions).CreateCollection(ctx, collection, opt)
@@ -1300,7 +1304,7 @@ func (p *Pool) DropCollection(ctx goctx.Context, dbName, collection string) (err
 	start := time.Now()
 	defer updateMetrics(operationLabelDropCollection, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncDropCollection)
+	sp := createMongoSpan(ctx, FuncDropCollection)
 	defer sp.Finish()
 
 	errDB := getMongoCollection(p.client, dbName, collection).Drop(ctx)
@@ -1317,7 +1321,7 @@ func (p *Pool) RenameCollection(ctx goctx.Context, dbName, oldName, newName stri
 	start := time.Now()
 	defer updateMetrics(operationLabelRenameCollection, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncRenameCollection)
+	sp := createMongoSpan(ctx, FuncRenameCollection)
 	defer sp.Finish()
 
 	from := fmt.Sprintf("%s.%s", dbName, oldName)
@@ -1339,7 +1343,7 @@ func (p *Pool) Pipe(ctx goctx.Context, dbName, collection string, pipeline, resu
 	start := time.Now()
 	defer updateMetrics(operationLabelPipe, start, &err)
 
-	sp := CreateMongoSpan(ctx, FuncPipe)
+	sp := createMongoSpan(ctx, FuncPipe)
 	defer sp.Finish()
 
 	var queryAll bool
@@ -1459,7 +1463,7 @@ func (c *Cursor) Close(ctx context.Context) (err gopkg.CodeError) {
 }
 
 func (c *Cursor) All(ctx context.Context, result interface{}) (err gopkg.CodeError) {
-	sp := CreateMongoSpan(c.ctx, FuncCursorAll)
+	sp := createMongoSpan(c.ctx, FuncCursorAll)
 	defer sp.Finish()
 	errDB := c.cursor.All(ctx, result)
 	err = c.pool.resultHandling(errDB, c.ctx)

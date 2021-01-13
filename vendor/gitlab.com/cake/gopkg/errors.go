@@ -1,8 +1,15 @@
 package gopkg
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
+)
+
+var (
+	ErrTooShort      = errors.New("error string is too short")
+	ErrInvalidCode   = errors.New("invalid code in error string")
+	ErrInvalidFormat = errors.New("invalid format in error string")
 )
 
 // CodeError - Code Error interface
@@ -153,4 +160,25 @@ func NewWrappedCodeError(code int, message string, wrappedErr error) CodeError {
 // NewCodeError returns CodeError by given error code and message (only accept 7-digits error code)
 func NewCodeError(code int, message string) CodeError {
 	return NewCarrierCodeError(code, message)
+}
+
+// ParseCodeError helps to parse a string to CodeError
+func ParseCodeError(errStr string) (CodeError, error) {
+	if len(errStr) < 9 {
+		return nil, ErrTooShort
+	}
+
+	code, errParse := strconv.Atoi(errStr[:7])
+	if errParse != nil {
+		return nil, ErrInvalidCode
+	}
+
+	if errStr[7] != ' ' {
+		return nil, ErrInvalidFormat
+	}
+
+	return CarrierCodeError{
+		ErrCode: code,
+		ErrMsg:  errStr[8:],
+	}, nil
 }

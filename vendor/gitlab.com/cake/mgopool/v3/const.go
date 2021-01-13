@@ -74,6 +74,8 @@ const (
 	MongoMsgGetPoolTimeout       = "timed out while checking out a connection from connection pool"
 	MongoMsgDocNil               = "document is nil"
 	MongoMsgServerSelectionError = "server selection error"
+	MongoMsgInvaildBson          = "(InvalidBSON)"
+	MongoMsgBadValue             = "(BadValue)"
 )
 
 // wrapped error msg

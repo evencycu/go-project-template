@@ -72,9 +72,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
-# github.com/gomodule/redigo v2.0.0+incompatible
-## explicit
-github.com/gomodule/redigo/internal
+# github.com/gomodule/redigo v1.7.1-0.20190822095346-d3876d43bbbe
 github.com/gomodule/redigo/redis
 # github.com/hashicorp/hcl v1.0.0
 github.com/hashicorp/hcl
@@ -178,8 +176,7 @@ github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/sirupsen/logrus v1.6.0
 github.com/sirupsen/logrus
-# github.com/spf13/afero v1.2.2
-## explicit
+# github.com/spf13/afero v1.1.2
 github.com/spf13/afero
 github.com/spf13/afero/mem
 # github.com/spf13/cast v1.3.0
@@ -187,8 +184,7 @@ github.com/spf13/cast
 # github.com/spf13/cobra v0.0.6
 ## explicit
 github.com/spf13/cobra
-# github.com/spf13/jwalterweatherman v1.1.0
-## explicit
+# github.com/spf13/jwalterweatherman v1.0.0
 github.com/spf13/jwalterweatherman
 # github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
@@ -231,7 +227,7 @@ gitlab.com/cake/gin-prometheus
 # gitlab.com/cake/goctx v1.6.16
 ## explicit
 gitlab.com/cake/goctx
-# gitlab.com/cake/gopkg v1.4.7
+# gitlab.com/cake/gopkg v1.4.8
 ## explicit
 gitlab.com/cake/gopkg
 # gitlab.com/cake/gotrace/v2 v2.1.2
@@ -243,11 +239,11 @@ gitlab.com/cake/intercom
 # gitlab.com/cake/m800log v1.5.0
 ## explicit
 gitlab.com/cake/m800log
-# gitlab.com/cake/mgopool/v3 v3.2.0
+# gitlab.com/cake/mgopool/v3 v3.2.3
 ## explicit
 gitlab.com/cake/mgopool/v3
 gitlab.com/cake/mgopool/v3/compat
-# gitlab.com/cake/redispool v0.1.20
+# gitlab.com/cake/redispool v0.1.22
 ## explicit
 gitlab.com/cake/redispool
 # go.mongodb.org/mongo-driver v1.4.1
