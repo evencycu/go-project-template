@@ -16,3 +16,8 @@ test:
 	@echo "Start unit tests & vet..."
 	go vet $(SOURCE)
 	go test -race -cover
+
+bench:
+	@echo "Start vet & benchmarks..."
+	go vet $(SOURCE)
+	go test -bench=. -benchtime 5s

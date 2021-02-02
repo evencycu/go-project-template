@@ -99,7 +99,7 @@ func NewServerCmd() *cobra.Command {
 			}(httpServer)
 
 			// gracefully shutdown
-			signal.Notify(quit, syscall.SIGINT, syscall.SIGKILL)
+			signal.Notify(quit, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 			<-quit
 		},
 	}

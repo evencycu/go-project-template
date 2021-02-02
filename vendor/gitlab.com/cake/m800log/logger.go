@@ -27,7 +27,7 @@ const (
 )
 
 func init() {
-	// Dummmy for Stupid Usage
+	// Dummy for Stupid Usage
 	l := logrus.New()
 	l.Out = os.Stdout
 	l.Level = logrus.DebugLevel
@@ -46,7 +46,7 @@ func SetLogger(l *logrus.Logger) {
 
 // GetDiscardLogger returns the new logrus logger
 func GetDiscardLogger() *logrus.Logger {
-	// Dummmy for Stupid Usage
+	// Dummy for Stupid Usage
 	l := logrus.New()
 	l.Out = ioutil.Discard
 	l.Level = logrus.PanicLevel
