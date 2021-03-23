@@ -47,7 +47,10 @@ modvendor:
 	go build -mod=mod -v $(SOURCE)
 	go mod tidy
 	go mod vendor
-	
+
+modcheck:
+	go list -mod=mod -m -u all
+
 dockerbuild: modvendor
 	docker build --build-arg APPNAME=$(APP) --build-arg GITVERSION=$(TAG) --build-arg GITREVISION=$(REVISION) --build-arg GITBRANCH=$(BR) -t $(DOCKERTAG) -f devops/Dockerfile .
 	
