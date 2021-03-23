@@ -35,6 +35,7 @@ const (
 	HTTPHeaderUserDataScope  = "x-m800-usr-data-scope"
 	HTTPHeaderUserDepartment = "x-m800-usr-dept"
 	HTTPHeaderSuperAdmin     = "x-m800-usr-super-admin"
+	HTTPHeaderBotType        = "x-m800-bot-type"
 
 	HTTPHeaderInternalCaller = "x-m800-internal-caller"
 
@@ -91,6 +92,7 @@ const (
 	LogKeyErrorType        = "eType"
 	LogKeyWrapErrorCode    = "ueCode"
 	LogKeyWrapErrorMessage = "ueMessage"
+	LogKeyBotType          = "botType"
 
 	// golang tp add fields
 
@@ -100,6 +102,10 @@ const (
 	LogKeyLogType = "type"
 	// LogKeyApp is the log field of app
 	LogKeyApp = "app"
+)
+
+const (
+	emptyObjectUti = "{}"
 )
 
 // Peeker designed for getting goctx from fasthttp *RequestHeader
@@ -153,6 +159,7 @@ func init() {
 		LogKeyUserDataScope:  HTTPHeaderUserDataScope,
 		LogKeyUserDepartment: HTTPHeaderUserDepartment,
 		LogKeySuperAdmin:     HTTPHeaderSuperAdmin,
+		LogKeyBotType:        HTTPHeaderBotType,
 	}
 
 	hKMap = map[string]string{
@@ -178,6 +185,7 @@ func init() {
 		HTTPHeaderUserDataScope:  LogKeyUserDataScope,
 		HTTPHeaderUserDepartment: LogKeyUserDepartment,
 		HTTPHeaderSuperAdmin:     LogKeySuperAdmin,
+		HTTPHeaderBotType:        LogKeyBotType,
 	}
 }
 

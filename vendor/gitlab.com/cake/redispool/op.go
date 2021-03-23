@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"gitlab.com/cake/m800log"
 )
 
 const (
@@ -32,6 +35,8 @@ const (
 	RedisHDel    = "HDEL"
 	RedisIncr    = "INCR"
 	RedisIncrBy  = "INCRBY"
+	RedisDecr    = "DECR"
+	RedisDecrBy  = "DECRBY"
 	RedisKeys    = "KEYS"
 	RedisEx      = "EX"
 	RedisTTL     = "TTL"
@@ -41,12 +46,28 @@ const (
 	RedisQueued = "QUEUED"
 )
 
+const (
+	ErrMsgReadOnlyReplica = "READONLY You can't write against a read only replica"
+)
+
+func (p *Pool) checkErrReason(err error) {
+	if err == nil {
+		return
+	}
+	errMsg := err.Error()
+	if strings.Contains(errMsg, ErrMsgReadOnlyReplica) {
+		*p.needReconnectTime = time.Now().Add(p.pool.IdleTimeout)
+		m800log.Warnf(p.ctx, "need reconnect err:%v needReconnectTime:%v", err, *p.needReconnectTime)
+	}
+}
+
 func (p *Pool) FlushDB() (err error) {
 	c := p.pool.Get()
 	defer c.Close()
 
 	str, err := redis.String(c.Do("FLUSHDB"))
 	if err != nil {
+		p.checkErrReason(err)
 		return
 	}
 	if str != RedisOk {
@@ -61,6 +82,7 @@ func (p *Pool) Set(key string, value interface{}) error {
 	defer c.Close()
 	str, err := redis.String(c.Do(RedisSet, key, value))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 	if str != RedisOk {
@@ -75,6 +97,7 @@ func (p *Pool) Setex(key, ttlSec string, value interface{}) error {
 	defer c.Close()
 	str, err := redis.String(c.Do(RedisSetex, key, ttlSec, value))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 	if str != RedisOk {
@@ -89,6 +112,7 @@ func (p *Pool) Setnx(key, ttlSec string, value interface{}) error {
 	defer c.Close()
 	str, err := redis.String(c.Do(RedisSet, key, value, RedisEx, ttlSec, RedisNx))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 	if str != RedisOk {
@@ -100,43 +124,57 @@ func (p *Pool) Setnx(key, ttlSec string, value interface{}) error {
 func (p *Pool) Exists(key string) (value bool, err error) {
 	c := p.pool.Get()
 	defer c.Close()
-
-	return redis.Bool(c.Do(RedisExists, key))
+	value, err = redis.Bool(c.Do(RedisExists, key))
+	p.checkErrReason(err)
+	return
 }
 
 func (p *Pool) TTL(key string) (value int, err error) {
 	c := p.pool.Get()
 	defer c.Close()
-
-	return redis.Int(c.Do(RedisTTL, key))
+	value, err = redis.Int(c.Do(RedisTTL, key))
+	p.checkErrReason(err)
+	return
 }
 
 func (p *Pool) GetBytes(key string) (value []byte, err error) {
 	c := p.pool.Get()
 	defer c.Close()
-
-	return redis.Bytes(c.Do(RedisGet, key))
+	value, err = redis.Bytes(c.Do(RedisGet, key))
+	p.checkErrReason(err)
+	return
 }
 
 func (p *Pool) GetString(key string) (value string, err error) {
 	c := p.pool.Get()
 	defer c.Close()
+	value, err = redis.String(c.Do(RedisGet, key))
+	p.checkErrReason(err)
+	return
+}
 
-	return redis.String(c.Do(RedisGet, key))
+func (p *Pool) GetStrings(key string) (values []string, err error) {
+	c := p.pool.Get()
+	defer c.Close()
+	values, err = redis.Strings(c.Do(RedisGet, key))
+	p.checkErrReason(err)
+	return
 }
 
 func (p *Pool) GetBool(key string) (value bool, err error) {
 	c := p.pool.Get()
 	defer c.Close()
-
-	return redis.Bool(c.Do(RedisGet, key))
+	value, err = redis.Bool(c.Do(RedisGet, key))
+	p.checkErrReason(err)
+	return
 }
 
 func (p *Pool) GetInt(key string) (value int, err error) {
 	c := p.pool.Get()
 	defer c.Close()
-
-	return redis.Int(c.Do(RedisGet, key))
+	value, err = redis.Int(c.Do(RedisGet, key))
+	p.checkErrReason(err)
+	return
 }
 
 func (p *Pool) Expire(key, ttlSec string) error {
@@ -144,6 +182,7 @@ func (p *Pool) Expire(key, ttlSec string) error {
 	defer c.Close()
 	resp, err := redis.Int(c.Do(RedisExpire, key, ttlSec))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 	if resp != 1 {
@@ -157,6 +196,7 @@ func (p *Pool) Delete(key string) error {
 	defer c.Close()
 	resp, err := redis.Int(c.Do(RedisDel, key))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 	if resp != 1 {
@@ -180,6 +220,7 @@ func (p *Pool) getAndDelete(key string) (value interface{}, err error) {
 	var resps []interface{}
 	resps, err = redis.Values(c.Do(RedisExec))
 	if err != nil {
+		p.checkErrReason(err)
 		return
 	}
 	value = resps[0]
@@ -206,8 +247,10 @@ func (p *Pool) HSetJSON(key, field string, value interface{}) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	res, err := redis.Int(c.Do(RedisHSet, key, field, jsonBytes))
+	p.checkErrReason(err)
 
-	return redis.Int(c.Do(RedisHSet, key, field, jsonBytes))
+	return res, err
 }
 
 //if the field does not exist, then reutrn redis.ErrNil
@@ -217,6 +260,7 @@ func (p *Pool) HGetJSON(key, field string, result interface{}) error {
 
 	bytes, err := redis.Bytes(c.Do(RedisHGet, key, field))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 
@@ -226,8 +270,10 @@ func (p *Pool) HGetJSON(key, field string, result interface{}) error {
 func (p *Pool) HKeys(key string) ([]string, error) {
 	c := p.pool.Get()
 	defer c.Close()
+	res, err := redis.Strings(c.Do(RedisHKeys, key))
 
-	return redis.Strings(c.Do(RedisHKeys, key))
+	p.checkErrReason(err)
+	return res, err
 }
 
 // values should be the type of *map[string]struct
@@ -255,6 +301,7 @@ func (p *Pool) HMGetJSON(key string, fields []string, values interface{}) error 
 
 	vs, err := redis.Values(c.Do(RedisHMGet, fs...))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 
@@ -299,8 +346,10 @@ func (p *Pool) HMGetJSON(key string, fields []string, values interface{}) error 
 func (p *Pool) HLen(key string) (int, error) {
 	c := p.pool.Get()
 	defer c.Close()
+	res, err := redis.Int(c.Do(RedisHLen, key))
 
-	return redis.Int(c.Do(RedisHLen, key))
+	p.checkErrReason(err)
+	return res, err
 }
 
 // values should be the type of map[string]struct
@@ -335,6 +384,7 @@ func (p *Pool) HMSetJSON(key string, values interface{}) error {
 
 	resp, err := redis.String(c.Do(RedisHMSet, fs...))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 
@@ -348,8 +398,10 @@ func (p *Pool) HMSetJSON(key string, values interface{}) error {
 func (p *Pool) HDel(key, field string) (int, error) {
 	c := p.pool.Get()
 	defer c.Close()
+	res, err := redis.Int(c.Do(RedisHDel, key, field))
 
-	return redis.Int(c.Do(RedisHDel, key, field))
+	p.checkErrReason(err)
+	return res, err
 }
 
 // values should be the type of *map[string]struct
@@ -370,6 +422,7 @@ func (p *Pool) HGetAllJSON(key string, result interface{}) error {
 
 	vs, err := redis.Values(c.Do(RedisHGetAll, key))
 	if err != nil {
+		p.checkErrReason(err)
 		return err
 	}
 
@@ -434,6 +487,7 @@ func (p *Pool) MultiExec(commands []string, args [][]interface{}) ([]interface{}
 	var resps []interface{}
 	resps, err := redis.Values(c.Do(RedisExec))
 	if err != nil {
+		p.checkErrReason(err)
 		return nil, err
 	}
 
@@ -443,29 +497,54 @@ func (p *Pool) MultiExec(commands []string, args [][]interface{}) ([]interface{}
 func (p *Pool) WatchMultiExec(wme *WatchMultiExecutor) ([]interface{}, error) {
 	c := p.pool.Get()
 	defer c.Close()
-
-	return wme.Exec(c)
+	res, err := wme.Exec(c)
+	p.checkErrReason(err)
+	return res, err
 }
 
+// FIXME: should not be exposed because of performance issue
+// See warning in: https://redis.io/commands/keys
 func (p *Pool) Keys(key string) ([]string, error) {
 	c := p.pool.Get()
 	defer c.Close()
+	res, err := redis.Strings(c.Do(RedisKeys, key))
+	p.checkErrReason(err)
 
-	return redis.Strings(c.Do(RedisKeys, key))
+	return res, err
 }
 
 func (p *Pool) Incr(key string) (int, error) {
 	c := p.pool.Get()
 	defer c.Close()
-
-	return redis.Int(c.Do(RedisIncr, key))
+	res, err := redis.Int(c.Do(RedisIncr, key))
+	p.checkErrReason(err)
+	return res, err
 }
 
 func (p *Pool) IncrBy(key string, amount int) (int, error) {
 	c := p.pool.Get()
 	defer c.Close()
+	res, err := redis.Int(c.Do(RedisIncrBy, key, amount))
+	p.checkErrReason(err)
 
-	return redis.Int(c.Do(RedisIncrBy, key, amount))
+	return res, err
+}
+
+func (p *Pool) Decr(key string) (int, error) {
+	c := p.pool.Get()
+	defer c.Close()
+	res, err := redis.Int(c.Do(RedisDecr, key))
+	p.checkErrReason(err)
+	return res, err
+}
+
+func (p *Pool) DecrBy(key string, amount int) (int, error) {
+	c := p.pool.Get()
+	defer c.Close()
+	res, err := redis.Int(c.Do(RedisDecrBy, key, amount))
+	p.checkErrReason(err)
+
+	return res, err
 }
 
 func (p *Pool) GetJSON(key string, result interface{}) error {
@@ -484,6 +563,30 @@ func (p *Pool) SetJSON(key string, content interface{}) error {
 	}
 
 	return p.Set(key, bytes)
+}
+
+func (p *Pool) ScanKeys(pattern string) ([]string, error) {
+	c := p.pool.Get()
+	defer c.Close()
+
+	iter := 0
+	keys := []string{}
+	for {
+		arr, err := redis.Values(c.Do("SCAN", iter, "MATCH", pattern))
+		if err != nil {
+			return keys, fmt.Errorf("patterm '%s' keys failed", pattern)
+		}
+
+		iter, _ = redis.Int(arr[0], nil)
+		k, _ := redis.Strings(arr[1], nil)
+		keys = append(keys, k...)
+
+		if iter == 0 {
+			break
+		}
+	}
+
+	return keys, nil
 }
 
 type WatchMultiExecutor struct {

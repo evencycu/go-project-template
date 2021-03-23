@@ -27,6 +27,21 @@ type dialerOpt func(*dialerOpts)
 
 type dialerContextFunc func(context.Context, string, string) (net.Conn, error)
 
+// Dialer implements interface in golang, see https://golang.org/pkg/net/#Dialer.Dial
+type Dialer struct {
+	dialFunc dialerContextFunc
+}
+
+// Dial function, see https://golang.org/pkg/net/#Dialer.Dial
+func (dialer *Dialer) Dial(network, address string) (net.Conn, error) {
+	return dialer.dialFunc(context.TODO(), network, address)
+}
+
+// DialContext function, see https://golang.org/pkg/net/#Dialer.Dial
+func (dialer *Dialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	return dialer.dialFunc(ctx, network, address)
+}
+
 // DialWithName sets the name of the dialer for tracking and monitoring.
 // This is the name for the dialer (default is `default`), but for `NewDialContextFunc` can be overwritten from the
 // Context using `DialNameToContext`.
@@ -102,6 +117,15 @@ func NewDialFunc(optFuncs ...dialerOpt) func(string, string) (net.Conn, error) {
 	}
 }
 
+// NewDialer returns a new Dialer
+// Note that if there is DialWithDialer in optFuncs, that dialer will be
+// the dialer instance that actually conducts the dials
+func NewDialer(optFuncs ...dialerOpt) *Dialer {
+	return &Dialer{
+		dialFunc: NewDialContextFunc(optFuncs...),
+	}
+}
+
 type clientConnTracker struct {
 	net.Conn
 	opts       *dialerOpts
@@ -163,3 +187,4 @@ func (ct *clientConnTracker) Close() error {
 	}
 	return err
 }
+

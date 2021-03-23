@@ -6,6 +6,7 @@ import (
 
 const (
 	TraceTagGinErrorCode = "gin.error.code"
+	LogEntryHandlerName  = "entryHandler"
 )
 
 const (
@@ -20,9 +21,12 @@ const (
 	CodeReadAll          = 1090105
 	CodeNilRequest       = 1090106
 	CodeEmptyServiceHome = 1090107
+	CodePanic            = 1090108
+	CodeMaliciousHeader  = 1090109
 
-	MsgEmpty            = "intercom response no message"
-	MsgEmptyServiceHome = "service home is empty"
+	MsgEmpty              = "intercom response no message"
+	MsgEmptyServiceHome   = "service home is empty"
+	MsgErrMaliciousHeader = "malicious header"
 )
 
 type Config struct {

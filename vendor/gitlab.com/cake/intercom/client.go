@@ -13,7 +13,6 @@ import (
 	conntrack "github.com/eaglerayp/go-conntrack"
 
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/sirupsen/logrus"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gopkg"
 	"gitlab.com/cake/gotrace/v2"
@@ -46,10 +45,11 @@ func init() {
 
 const (
 	// HeaderAuthorization is header key for oauth authorization
-	HeaderAuthorization = "Authorization"
-	HeaderContentType   = "Content-Type"
-	HeaderJSON          = "application/json"
-	HeaderForm          = "application/x-www-form-urlencoded"
+	HeaderAuthorization      = "Authorization"
+	HeaderContentType        = "Content-Type"
+	HeaderContentDisposition = "Content-Disposition"
+	HeaderJSON               = "application/json"
+	HeaderForm               = "application/x-www-form-urlencoded"
 )
 
 // SetHTTPClient set the package default http client
@@ -148,7 +148,8 @@ func m800DoPostProcessing(ctx goctx.Context, httpResp *http.Response) (result *J
 		return nil, gopkg.NewWrappedCodeError(0, "", gopkg.NewCodeError(CodeBadHTTPResponse, "nil response"))
 	}
 
-	respPrinted := logDumpResponsePrinted(ctx, logrus.DebugLevel, httpResp, false)
+	// m800do should not always print response
+	respPrinted := false
 	body, err := ReadFromReadCloser(httpResp.Body)
 	if err != nil {
 		ctx.Set(goctx.LogKeyErrorCode, err.ErrorCode())

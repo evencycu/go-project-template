@@ -18,6 +18,11 @@ import (
 	"gitlab.com/cake/m800log"
 )
 
+type DecodeOption struct {
+	UseNumber             bool
+	DisallowUnknownFields bool
+}
+
 // ParseJSONReq read body
 func ParseJSONReq(ctx goctx.Context, req *http.Request, v interface{}) gopkg.CodeError {
 	if req == nil || req.Body == nil {
@@ -35,6 +40,15 @@ func ParseJSONReq(ctx goctx.Context, req *http.Request, v interface{}) gopkg.Cod
 
 // ParseJSONGin
 func ParseJSONGin(ctx goctx.Context, c *gin.Context, v interface{}) gopkg.CodeError {
+	return ParseJSONGinWithDecodeOption(ctx, c, v,
+		DecodeOption{
+			UseNumber:             true,
+			DisallowUnknownFields: false,
+		},
+	)
+}
+
+func ParseJSONGinWithDecodeOption(ctx goctx.Context, c *gin.Context, v interface{}, option DecodeOption) gopkg.CodeError {
 	rawI, ok := c.Get(KeyBody)
 	if !ok {
 		return ParseJSONReq(ctx, c.Request, v)
@@ -46,7 +60,13 @@ func ParseJSONGin(ctx goctx.Context, c *gin.Context, v interface{}) gopkg.CodeEr
 		return gopkg.NewCodeError(CodeParseJSON, errMsg)
 	}
 	d := json.NewDecoder(bytes.NewBuffer(raw))
-	d.UseNumber()
+	if option.UseNumber {
+		d.UseNumber()
+	}
+	if option.DisallowUnknownFields {
+		d.DisallowUnknownFields()
+	}
+
 	if errJSON := d.Decode(v); errJSON != nil {
 		m800log.Debugf(ctx, "[ParseJSONGin] err:%v, req body: %s", errJSON.Error(), string(raw))
 		return gopkg.NewCodeError(CodeParseJSON, errJSON.Error())

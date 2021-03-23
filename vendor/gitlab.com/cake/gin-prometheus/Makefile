@@ -1,7 +1,8 @@
-APP=gin-metrics
+APP=ginmetrics
 PWD=$(shell pwd)
-SOURCE=./example/...
+SOURCE=./...
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
+export GOPRIVATE=gitlab.com*
 
 build:
 	GO111MODULE=on go install -v $(SOURCE)
@@ -18,7 +19,7 @@ run-custom:build
 	$(GOPATH)/bin/gin-metrics-custom
 
 modvendor:
-	GO111MODULE=on go build -v $(SOURCE) 
+	GO111MODULE=on go build -mod=mod -v $(SOURCE) 
 	GO111MODULE=on go mod tidy
 	GO111MODULE=on go mod vendor
 

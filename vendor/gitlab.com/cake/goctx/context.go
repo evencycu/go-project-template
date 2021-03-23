@@ -168,7 +168,10 @@ func (c *MapContext) MapString() (ret map[string]string) {
 	})
 
 	if sp := opentracing.SpanFromContext(c.Context); sp != nil {
-		ret[LogKeyTrace] = fmt.Sprintf("%s", sp)
+		uti := fmt.Sprintf("%s", sp)
+		if uti != "" && uti != emptyObjectUti {
+			ret[LogKeyTrace] = uti
+		}
 	}
 	return
 }
@@ -212,7 +215,10 @@ func (c *MapContext) HeaderKeyMap() (ret map[string]string) {
 		}
 	}
 	if sp := c.GetSpan(); sp != nil {
-		ret[HTTPHeaderTrace] = fmt.Sprintf("%s", sp)
+		uti := fmt.Sprintf("%s", sp)
+		if uti != "" && uti != emptyObjectUti {
+			ret[HTTPHeaderTrace] = uti
+		}
 	}
 	switch role := c.Get(LogKeyUserRole).(type) {
 	case string:

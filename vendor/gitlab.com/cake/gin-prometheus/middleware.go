@@ -1,4 +1,4 @@
-package ginmetrics
+package ginprometheus
 
 import (
 	"fmt"
@@ -41,6 +41,10 @@ type GinPrometheus struct {
 
 func (p *GinPrometheus) SetHandlerFunc(h gin.HandlerFunc) {
 	p.ginHandleFunc = h
+}
+
+func (p *GinPrometheus) GetGinHandlerFunc() gin.HandlerFunc {
+	return p.ginHandleFunc
 }
 
 func NewPrometheus(subsystem string, options ...func(*GinPrometheus)) (p *GinPrometheus, err error) {

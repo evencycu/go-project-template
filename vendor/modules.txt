@@ -42,7 +42,7 @@ github.com/containerd/continuity/pathdriver
 github.com/docker/go-connections/nat
 # github.com/docker/go-units v0.4.0
 github.com/docker/go-units
-# github.com/eaglerayp/go-conntrack v0.1.1
+# github.com/eaglerayp/go-conntrack v0.1.2
 github.com/eaglerayp/go-conntrack
 # github.com/fsnotify/fsnotify v1.4.7
 github.com/fsnotify/fsnotify
@@ -72,7 +72,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
-# github.com/gomodule/redigo v1.7.1-0.20190822095346-d3876d43bbbe
+# github.com/gomodule/redigo v1.8.4
 github.com/gomodule/redigo/redis
 # github.com/hashicorp/hcl v1.0.0
 github.com/hashicorp/hcl
@@ -221,10 +221,10 @@ github.com/ugorji/go/codec
 github.com/xdg/scram
 # github.com/xdg/stringprep v0.0.0-20180714160509-73f8eece6fdc
 github.com/xdg/stringprep
-# gitlab.com/cake/gin-prometheus v1.1.4
+# gitlab.com/cake/gin-prometheus v1.1.5
 ## explicit
 gitlab.com/cake/gin-prometheus
-# gitlab.com/cake/goctx v1.6.16
+# gitlab.com/cake/goctx v1.7.1
 ## explicit
 gitlab.com/cake/goctx
 # gitlab.com/cake/gopkg v1.4.8
@@ -233,17 +233,17 @@ gitlab.com/cake/gopkg
 # gitlab.com/cake/gotrace/v2 v2.1.2
 ## explicit
 gitlab.com/cake/gotrace/v2
-# gitlab.com/cake/intercom v0.9.20
+# gitlab.com/cake/intercom v0.10.7
 ## explicit
 gitlab.com/cake/intercom
 # gitlab.com/cake/m800log v1.5.1
 ## explicit
 gitlab.com/cake/m800log
-# gitlab.com/cake/mgopool/v3 v3.2.3
+# gitlab.com/cake/mgopool/v3 v3.2.4
 ## explicit
 gitlab.com/cake/mgopool/v3
 gitlab.com/cake/mgopool/v3/compat
-# gitlab.com/cake/redispool v0.1.22
+# gitlab.com/cake/redispool v0.1.27
 ## explicit
 gitlab.com/cake/redispool
 # go.mongodb.org/mongo-driver v1.4.1
@@ -282,7 +282,7 @@ go.mongodb.org/mongo-driver/x/mongo/driver/uuid
 go.mongodb.org/mongo-driver/x/mongo/driver/wiremessage
 # go.uber.org/atomic v1.6.0
 go.uber.org/atomic
-# golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+# golang.org/x/crypto v0.0.0-20200117160349-530e935923ad
 golang.org/x/crypto/ocsp
 golang.org/x/crypto/pbkdf2
 # golang.org/x/mod v0.4.0
@@ -290,7 +290,7 @@ golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+# golang.org/x/net v0.0.0-20200219183655-46282727080f
 golang.org/x/net/context
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace

@@ -8,10 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/cake/gopkg"
 	"gitlab.com/cake/m800log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
+
+	conntrack "github.com/eaglerayp/go-conntrack"
 )
 
 // AlertChannel put error message, wait for outer user (i.e., gobuster) pick and send.
@@ -73,7 +76,13 @@ func newClient(dbi *DBInfo, addrs []string) (newClient *mongo.Client, err error)
 	}
 	uri := fmt.Sprintf("mongodb://%s%s/%s", account, strings.Join(addrs, ","), dbi.AuthDatabase)
 	clientOpt := options.Client().ApplyURI(uri)
-	clientOpt.SetAppName("mgopool")
+
+	conntrackDialer := conntrack.NewDialer(
+		conntrack.DialWithName("mgopool"),
+		conntrack.DialWithTracing(),
+	)
+	clientOpt.SetDialer(conntrackDialer)
+	clientOpt.SetAppName(gopkg.GetAppName())
 	clientOpt.SetConnectTimeout(dbi.Timeout)
 	clientOpt.SetSocketTimeout(syncSocketTimeout)
 	clientOpt.SetDirect(dbi.Direct)

@@ -15,15 +15,20 @@ func init() {
 	prometheus.MustRegister(internalUpstreamCounter)
 	prometheus.MustRegister(internalUpstreamDuration)
 	prometheus.MustRegister(brokenPipeCounts)
+	prometheus.MustRegister(proxyBrokenPipeCounts)
 }
 
 const (
-	metricNs          = "intercom"
-	subSystemUpstream = "upstream"
+	metricNs              = "intercom"
+	subSystemUpstream     = "upstream"
+	subSystemReverseProxy = "proxy"
 
-	labelHost         = "host"
-	labelHTTPCode     = "code"
-	labelInternalCode = "eCode"
+	labelHost              = "host"
+	labelHTTPCode          = "code"
+	labelInternalCode      = "eCode"
+	labelUpstream          = "upstream"
+	labelUpstreamNamespace = "upstream_namespace"
+	labelDownstream        = "downstream"
 )
 
 var (
@@ -69,13 +74,24 @@ var (
 		[]string{labelHost, labelInternalCode},
 	)
 
-	brokenPipeCounts = prometheus.NewCounter(
+	brokenPipeCounts = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricNs,
 			Subsystem: subSystemUpstream,
 			Name:      "broken_pipes_counts",
 			Help:      "Total count of broken pipes",
 		},
+		[]string{labelDownstream},
+	)
+
+	proxyBrokenPipeCounts = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemReverseProxy,
+			Name:      "proxy_broken_pipes_counts",
+			Help:      "Total count of reverse proxy broken pipes",
+		},
+		[]string{labelDownstream, labelUpstream, labelUpstreamNamespace},
 	)
 )
 

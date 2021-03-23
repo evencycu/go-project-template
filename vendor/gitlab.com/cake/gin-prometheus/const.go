@@ -1,4 +1,4 @@
-package ginmetrics
+package ginprometheus
 
 import (
 	"github.com/prometheus/client_golang/prometheus"

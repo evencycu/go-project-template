@@ -68,6 +68,10 @@ var ErrorHttpStatusMapping = &ImmutableMap{
 	rwLock: sync.RWMutex{},
 }
 
+func init() {
+	ErrorHttpStatusMapping.Set(CodeMaliciousHeader, http.StatusUnauthorized)
+}
+
 func SetDefaultHTTPErrorCode(httpCode int) error {
 	if ok := http.StatusText(httpCode); ok == "" {
 		return fmt.Errorf("invalid http code")

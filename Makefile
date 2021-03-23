@@ -39,14 +39,14 @@ clean:
 	docker system prune -f
 
 modrun:
-	GO111MODULE=on go install -v $(SOURCE)
+	go install -v $(SOURCE)
 	$(GOPATH)/bin/$(APP) server --config $(CONF) 
 
 modvendor:
 	- rm go.sum
-	GO111MODULE=on go build -mod=mod -v $(SOURCE)
-	GO111MODULE=on go mod tidy
-	GO111MODULE=on go mod vendor
+	go build -mod=mod -v $(SOURCE)
+	go mod tidy
+	go mod vendor
 	
 dockerbuild: modvendor
 	docker build --build-arg APPNAME=$(APP) --build-arg GITVERSION=$(TAG) --build-arg GITREVISION=$(REVISION) --build-arg GITBRANCH=$(BR) -t $(DOCKERTAG) -f devops/Dockerfile .

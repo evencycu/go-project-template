@@ -3,6 +3,7 @@ module gitlab.com/cake/mgopool/v3
 go 1.13
 
 require (
+	github.com/eaglerayp/go-conntrack v0.1.2
 	github.com/golang/mock v1.4.4-0.20200911215831-eb4f98929efd
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/ory/dockertest/v3 v3.6.0
