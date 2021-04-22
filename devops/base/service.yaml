@@ -11,8 +11,4 @@ spec:
     port: 8999
     protocol: TCP
     targetPort: api-port
-  - name: jaeger-http
-    port: 14271
-    protocol: TCP
-    targetPort: jaeger-http
   type: ClusterIP

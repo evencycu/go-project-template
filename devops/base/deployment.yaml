@@ -27,4 +27,4 @@ spec:
             httpGet:
               path: /ready
               port: api-port
-            periodSeconds: 5
+            periodSeconds: 15
