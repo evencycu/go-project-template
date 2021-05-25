@@ -101,56 +101,80 @@ func GinOKListResponse(c *gin.Context, result interface{}, total, offset, count 
 
 // GinAllResponse defines the interface of error response with result
 func GinAllResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
+	eCode := 0
+	eMsg := ""
+	if err != nil {
+		eCode = err.ErrorCode()
+		eMsg = err.ErrorMsg()
+	}
 	response := Response{}
 	response.Result = result
-	response.Code = err.ErrorCode()
-	response.Message = err.ErrorMsg()
+	response.Code = eCode
+	response.Message = eMsg
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
-	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	c.Set(goctx.LogKeyErrorCode, eCode)
 	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
 // GinOKError defines the interface of error response
 func GinOKError(c *gin.Context, err gopkg.CodeError) {
+	eCode := 0
+	eMsg := ""
+	if err != nil {
+		eCode = err.ErrorCode()
+		eMsg = err.ErrorMsg()
+	}
 	response := Response{}
-	response.Code = err.ErrorCode()
-	response.Message = err.ErrorMsg()
+	response.Code = eCode
+	response.Message = eMsg
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
-	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	c.Set(goctx.LogKeyErrorCode, eCode)
 	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(http.StatusOK, response)
 }
 
 // GinError defines the interface of error response
 func GinError(c *gin.Context, err gopkg.CodeError) {
-	status, ok := ErrorHttpStatusMapping.Get(err.ErrorCode())
+	eCode := 0
+	eMsg := ""
+	if err != nil {
+		eCode = err.ErrorCode()
+		eMsg = err.ErrorMsg()
+	}
+	status, ok := ErrorHttpStatusMapping.Get(eCode)
 	if !ok {
 		status = defaultHTTPErrorCode
 	}
 
 	response := Response{
-		Code:    err.ErrorCode(),
-		Message: err.ErrorMsg(),
+		Code:    eCode,
+		Message: eMsg,
 		CID:     c.GetHeader(goctx.HTTPHeaderCID),
 	}
-	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	c.Set(goctx.LogKeyErrorCode, eCode)
 	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(status, response)
 }
 
 // GinAllErrorResponse defines the interface of error response with result
 func GinAllErrorResponse(c *gin.Context, result interface{}, err gopkg.CodeError) {
-	status, ok := ErrorHttpStatusMapping.Get(err.ErrorCode())
+	eCode := 0
+	eMsg := ""
+	if err != nil {
+		eCode = err.ErrorCode()
+		eMsg = err.ErrorMsg()
+	}
+	status, ok := ErrorHttpStatusMapping.Get(eCode)
 	if !ok {
 		status = defaultHTTPErrorCode
 	}
 	response := Response{}
 	response.Result = result
-	response.Code = err.ErrorCode()
-	response.Message = err.ErrorMsg()
+	response.Code = eCode
+	response.Message = eMsg
 	response.CID = c.GetHeader(goctx.HTTPHeaderCID)
-	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	c.Set(goctx.LogKeyErrorCode, eCode)
 	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(status, response)
 }
@@ -173,17 +197,26 @@ func GinErrorCodeMsg(c *gin.Context, code int, msg string) {
 
 // GinErrorStatus return with the given HTTP status code, and error response
 func GinErrorStatus(c *gin.Context, status int, err gopkg.CodeError) {
+	eCode := 0
+	eMsg := ""
+	if err != nil {
+		eCode = err.ErrorCode()
+		eMsg = err.ErrorMsg()
+	}
 	response := Response{
-		Code:    err.ErrorCode(),
-		Message: err.ErrorMsg(),
+		Code:    eCode,
+		Message: eMsg,
 		CID:     c.GetHeader(goctx.HTTPHeaderCID),
 	}
-	c.Set(goctx.LogKeyErrorCode, err.ErrorCode())
+	c.Set(goctx.LogKeyErrorCode, eCode)
 	setWrappedErrorCode(c, err)
 	c.AbortWithStatusJSON(status, response)
 }
 
 func setWrappedErrorCode(c *gin.Context, err gopkg.CodeError) {
+	if err == nil {
+		return
+	}
 	var carrierErr gopkg.CarrierCodeError
 	if errors.As(err, &carrierErr) {
 		if wrapErr := carrierErr.Unwrap(); wrapErr != nil {

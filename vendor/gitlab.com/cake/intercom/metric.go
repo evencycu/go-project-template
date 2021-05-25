@@ -16,6 +16,12 @@ func init() {
 	prometheus.MustRegister(internalUpstreamDuration)
 	prometheus.MustRegister(brokenPipeCounts)
 	prometheus.MustRegister(proxyBrokenPipeCounts)
+	prometheus.MustRegister(totalCrossRegionFailedRequestCounts)
+	prometheus.MustRegister(totalCrossRegionRequestCounts)
+	prometheus.MustRegister(currentCrossRegionRequestCounts)
+	prometheus.MustRegister(crossRegionRequestDuration)
+	prometheus.MustRegister(crossRegionRequestSize)
+	prometheus.MustRegister(crossRegionResponseSize)
 }
 
 const (
@@ -29,6 +35,8 @@ const (
 	labelUpstream          = "upstream"
 	labelUpstreamNamespace = "upstream_namespace"
 	labelDownstream        = "downstream"
+	labelFromNamespace     = "from_namespace"
+	labelToNamespace       = "to_namespace"
 )
 
 var (
@@ -39,7 +47,11 @@ var (
 			Name:      "external_upstream_sent_total",
 			Help:      "Total external upstream request number sent",
 		},
-		[]string{labelHost, labelHTTPCode, labelInternalCode},
+		[]string{
+			labelHost,
+			labelHTTPCode,
+			labelInternalCode,
+		},
 	)
 
 	externalUpstreamDuration = prometheus.NewHistogramVec(
@@ -50,7 +62,11 @@ var (
 			Help:      "Total external upstream request duration",
 			Buckets:   prometheus.ExponentialBuckets(0.1, 2, 10),
 		},
-		[]string{labelHost, labelHTTPCode, labelInternalCode},
+		[]string{
+			labelHost,
+			labelHTTPCode,
+			labelInternalCode,
+		},
 	)
 
 	internalUpstreamCounter = prometheus.NewCounterVec(
@@ -60,7 +76,10 @@ var (
 			Name:      "internal_upstream_sent_total",
 			Help:      "Total internal upstream request number sent",
 		},
-		[]string{labelHost, labelInternalCode},
+		[]string{
+			labelHost,
+			labelInternalCode,
+		},
 	)
 
 	internalUpstreamDuration = prometheus.NewHistogramVec(
@@ -71,7 +90,10 @@ var (
 			Help:      "Total internal upstream request duration",
 			Buckets:   prometheus.ExponentialBuckets(0.1, 2, 10),
 		},
-		[]string{labelHost, labelInternalCode},
+		[]string{
+			labelHost,
+			labelInternalCode,
+		},
 	)
 
 	brokenPipeCounts = prometheus.NewCounterVec(
@@ -81,7 +103,9 @@ var (
 			Name:      "broken_pipes_counts",
 			Help:      "Total count of broken pipes",
 		},
-		[]string{labelDownstream},
+		[]string{
+			labelDownstream,
+		},
 	)
 
 	proxyBrokenPipeCounts = prometheus.NewCounterVec(
@@ -91,7 +115,92 @@ var (
 			Name:      "proxy_broken_pipes_counts",
 			Help:      "Total count of reverse proxy broken pipes",
 		},
-		[]string{labelDownstream, labelUpstream, labelUpstreamNamespace},
+		[]string{
+			labelDownstream,
+			labelUpstream,
+			labelUpstreamNamespace,
+		},
+	)
+
+	totalCrossRegionFailedRequestCounts = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemReverseProxy,
+			Name:      "cross_region_failed_requests_total",
+			Help:      "Total count of cross region failed request",
+		},
+		[]string{
+			labelFromNamespace,
+			labelToNamespace,
+		},
+	)
+
+	totalCrossRegionRequestCounts = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemReverseProxy,
+			Name:      "cross_region_requests_total",
+			Help:      "Total count of cross region request",
+		},
+		[]string{
+			labelFromNamespace,
+			labelToNamespace,
+		},
+	)
+
+	currentCrossRegionRequestCounts = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemReverseProxy,
+			Name:      "current_cross_region_request_counts",
+			Help:      "Current count of cross region request",
+		},
+		[]string{
+			labelFromNamespace,
+			labelToNamespace,
+		},
+	)
+
+	crossRegionRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemReverseProxy,
+			Name:      "cross_region_request_duration_seconds",
+			Help:      "Total cross region request duration",
+			Buckets:   prometheus.ExponentialBuckets(0.1, 2, 10),
+		},
+		[]string{
+			labelFromNamespace,
+			labelToNamespace,
+		},
+	)
+
+	crossRegionRequestSize = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemReverseProxy,
+			Name:      "cross_region_request_size_bytes",
+			Help:      "Cross region request size in bytes",
+			Buckets:   prometheus.ExponentialBuckets(100, 2, 8),
+		},
+		[]string{
+			labelFromNamespace,
+			labelToNamespace,
+		},
+	)
+
+	crossRegionResponseSize = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricNs,
+			Subsystem: subSystemReverseProxy,
+			Name:      "cross_region_response_size_bytes",
+			Help:      "Cross region response size in bytes",
+			Buckets:   prometheus.ExponentialBuckets(100, 2, 8),
+		},
+		[]string{
+			labelFromNamespace,
+			labelToNamespace,
+		},
 	)
 )
 
@@ -115,6 +224,7 @@ func updateExternalMetrics(host string, start time.Time, resp *http.Response, er
 		labelInternalCode: eCode,
 		labelHost:         host,
 	}).Inc()
+
 	externalUpstreamDuration.With(prometheus.Labels{
 		labelHTTPCode:     HTTPCode,
 		labelInternalCode: eCode,

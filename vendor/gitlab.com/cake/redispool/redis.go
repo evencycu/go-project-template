@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/FZambia/sentinel"
-	conntrack "github.com/eaglerayp/go-conntrack"
+	"github.com/eaglerayp/go-conntrack"
 	"github.com/gomodule/redigo/redis"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/m800log"
@@ -144,4 +144,8 @@ func (p *Pool) Ping() error {
 		return fmt.Errorf("%s", str)
 	}
 	return nil
+}
+
+func (p *Pool) GetPool() *redis.Pool {
+	return p.pool
 }

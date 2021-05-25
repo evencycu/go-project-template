@@ -1,6 +1,8 @@
 package intercom
 
 import (
+	"time"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,6 +40,10 @@ var (
 	ErrorTraceLevel = logrus.WarnLevel
 	AppName         = ""
 	Namespace       = ""
+)
+
+var (
+	singleFlightRequestDuration = 100 * time.Millisecond // limited parallelism , accept 1 request every 100ms
 )
 
 func SetErrorTraceLevel(lvl logrus.Level) {

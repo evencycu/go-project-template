@@ -2,6 +2,7 @@ package mgopool
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 
-	conntrack "github.com/eaglerayp/go-conntrack"
+	"github.com/eaglerayp/go-conntrack"
 )
 
 // AlertChannel put error message, wait for outer user (i.e., gobuster) pick and send.
@@ -150,6 +151,14 @@ func (p *Pool) Init(dbi *DBInfo) error {
 	p.client = client
 
 	return nil
+}
+
+func (p *Pool) GetMongoClient() (*mongo.Client, error) {
+	if p.client == nil {
+		return nil, errors.New("mongo client empty")
+	}
+
+	return p.client, nil
 }
 
 // IsAvailable returns whether Pool availalbe

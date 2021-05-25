@@ -17,7 +17,7 @@ func NoRouteHandler(code int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		response := Response{
 			Code:    code,
-			Message: fmt.Sprintf(pageNotFound, c.Request.Method, c.Request.URL.String()),
+			Message: fmt.Sprintf(pageNotFound, c.Request.Method, c.Request.Host+c.Request.URL.Path),
 			CID:     c.GetHeader(goctx.HTTPHeaderCID),
 		}
 		c.Set(goctx.LogKeyErrorCode, code)
@@ -29,7 +29,7 @@ func NoMethodHandler(code int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		response := Response{
 			Code:    code,
-			Message: fmt.Sprintf(methodNotAllowed, c.Request.Method, c.Request.URL.String()),
+			Message: fmt.Sprintf(methodNotAllowed, c.Request.Method, c.Request.Host+c.Request.URL.Path),
 			CID:     c.GetHeader(goctx.HTTPHeaderCID),
 		}
 		c.Set(goctx.LogKeyErrorCode, code)

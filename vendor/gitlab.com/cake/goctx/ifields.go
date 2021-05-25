@@ -36,7 +36,7 @@ const (
 	HTTPHeaderUserDepartment = "x-m800-usr-dept"
 	HTTPHeaderSuperAdmin     = "x-m800-usr-super-admin"
 	HTTPHeaderBotType        = "x-m800-bot-type"
-
+	HTTPHeaderFromNs         = "x-m800-from-ns"
 	HTTPHeaderInternalCaller = "x-m800-internal-caller"
 
 	// for logger
@@ -93,6 +93,8 @@ const (
 	LogKeyWrapErrorCode    = "ueCode"
 	LogKeyWrapErrorMessage = "ueMessage"
 	LogKeyBotType          = "botType"
+	// cross region caller
+	LogKeyFromNamespace = "fromNs"
 
 	// golang tp add fields
 
@@ -160,6 +162,7 @@ func init() {
 		LogKeyUserDepartment: HTTPHeaderUserDepartment,
 		LogKeySuperAdmin:     HTTPHeaderSuperAdmin,
 		LogKeyBotType:        HTTPHeaderBotType,
+		LogKeyFromNamespace:  HTTPHeaderFromNs,
 	}
 
 	hKMap = map[string]string{
@@ -186,6 +189,7 @@ func init() {
 		HTTPHeaderUserDepartment: LogKeyUserDepartment,
 		HTTPHeaderSuperAdmin:     LogKeySuperAdmin,
 		HTTPHeaderBotType:        LogKeyBotType,
+		HTTPHeaderFromNs:         LogKeyFromNamespace,
 	}
 }
 

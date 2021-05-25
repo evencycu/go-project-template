@@ -18,23 +18,26 @@ sConf := &jaegercfg.SamplerConfig{
 rConf := &jaegercfg.ReporterConfig{
     QueueSize:           viper.GetInt("jaeger.queue_size"),
     BufferFlushInterval: viper.GetDuration("jaeger.flush_interval"),
-    LocalAgentHostPort:  fmt.Sprintf("%s:%d", viper.GetString("jaeger.host"), viper.GetInt("jaeger.port")),
+    LocalAgentHostPort:  viper.GetString("jaeger.host"),
     LogSpans:            viper.GetBool("jaeger.log_spans"),
 }
-log.Printf("Sampler Config:%+v\nReporterConfig:%+v\n", sConf, rConf)
-if err := gotrace.InitJaeger(AppName, sConf, rConf); err != nil {
-    return fmt.Errorf("init tracer error:%s", err.Error())
+
+closer, errJaeger := gotrace.InitJaeger(ds.GetAppName(), sConf, rConf)
+if errJaeger != nil {
+    m800log.Errorf(systemCtx, "tracer init error, sampler config: %+v, reporter onfig: %+v", sConf, rConf)
+    panic(errJaeger)
 }
-return nil
+if closer != nil {
+    defer closer.Close()
+}
 ```
 
 ### Entry of component: In Gin Middleware
 
 ```go
-sp, isNew := gotrace.ExtractSpanFromContext("span name", ctx)
+sp, isNew := gotrace.CreateSpan(ctx,"span name")
 if isNew {
     defer sp.Finish()
-    ctx.Set(goctx.LogKeyTrace,sp)
 }
 ```
 

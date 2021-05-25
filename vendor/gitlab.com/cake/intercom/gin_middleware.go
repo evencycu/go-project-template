@@ -15,16 +15,19 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+	metrics "gitlab.com/cake/gin-prometheus"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gopkg"
 	"gitlab.com/cake/gotrace/v2"
 	"gitlab.com/cake/m800log"
+	"golang.org/x/sync/singleflight"
 )
 
 var (
@@ -40,6 +43,15 @@ var (
 
 var (
 	proxyMap = sync.Map{}
+)
+
+var (
+	reverseProxySingleFlightGroup singleflight.Group
+)
+
+var (
+	currentRequestCount uint64 = 0
+	metricUnit          int    = 1
 )
 
 const (
@@ -102,7 +114,9 @@ func M800Recovery(panicCode int) gin.HandlerFunc {
 
 				// If the connection is dead, we can't write a status to it.
 				if brokenPipe {
-					label := prometheus.Labels{labelDownstream: downstreamName(c)}
+					label := prometheus.Labels{
+						labelDownstream: downstreamName(c),
+					}
 					brokenPipeCounts.With(label).Inc()
 					c.Error(err.(error)) // nolint: errcheck
 					c.Abort()
@@ -295,42 +309,57 @@ func dumpLogHandle(ctx goctx.Context, c *gin.Context, handlerName string, httpBo
 	m800log.Logf(ctx, ErrorTraceLevel, "API Response %d: duration: %s body: %s", c.Writer.Status(), elapsed, logRespBody)
 }
 
-func newProxy(ctx goctx.Context, forwardedHost string, timeout time.Duration, proxyErrorCode int) *httputil.ReverseProxy {
-	v, ok := proxyMap.Load(forwardedHost)
-	if ok {
-		return v.(*httputil.ReverseProxy)
+func newProxy(ctx goctx.Context, forwardedHost string, timeout time.Duration, proxyErrorCode int) (result *httputil.ReverseProxy) {
+	forgetSingleFlightGroupKey := func(key string) {
+		time.Sleep(singleFlightRequestDuration)
+		reverseProxySingleFlightGroup.Forget(key)
 	}
-	director := func(req *http.Request) {
-		req.Header.Add(proxyHeaderForwardHost, forwardedHost)
-		req.Header.Add(proxyHeaderOriginHost, req.Host)
-		req.URL.Scheme = proxyScheme
-		req.URL.Host = forwardedHost
-	}
-	proxy := &httputil.ReverseProxy{
-		Director: director,
-		Transport: &http.Transport{
-			ResponseHeaderTimeout: timeout,
-		},
-		ErrorHandler: func(resp http.ResponseWriter, req *http.Request, err error) {
-			if err != nil {
-				response := Response{}
-				response.Code = proxyErrorCode
-				response.Message = "cross region forward error: " + err.Error()
-				byteResp, err := json.Marshal(response)
+
+	resultI, _, _ := reverseProxySingleFlightGroup.Do(forwardedHost, func() (output interface{}, err error) {
+		go forgetSingleFlightGroupKey(forwardedHost)
+
+		output, ok := proxyMap.Load(forwardedHost)
+		if ok {
+			return
+		}
+
+		director := func(req *http.Request) {
+			req.Header.Add(proxyHeaderForwardHost, forwardedHost)
+			req.Header.Add(proxyHeaderOriginHost, req.Host)
+			req.URL.Scheme = proxyScheme
+			req.URL.Host = forwardedHost
+		}
+		proxy := &httputil.ReverseProxy{
+			Director: director,
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: timeout,
+			},
+			ErrorHandler: func(resp http.ResponseWriter, req *http.Request, err error) {
 				if err != nil {
-					byteResp = []byte(fmt.Sprintf(`{"code":%d,"message":"cross region forward error"}`, proxyErrorCode))
+					response := Response{}
+					response.Code = proxyErrorCode
+					response.Message = "cross region forward error: " + err.Error()
+					byteResp, err := json.Marshal(response)
+					if err != nil {
+						byteResp = []byte(fmt.Sprintf(`{"code":%d,"message":"cross region forward error"}`, proxyErrorCode))
+					}
+					resp.Header().Set(HeaderContentType, HeaderJSON)
+					resp.WriteHeader(http.StatusBadGateway)
+					_, errWrite := resp.Write(byteResp)
+					if errWrite != nil {
+						m800log.Info(ctx, "proxy response write error: ", errWrite)
+					}
 				}
-				resp.Header().Set(HeaderContentType, HeaderJSON)
-				resp.WriteHeader(http.StatusBadGateway)
-				_, errWrite := resp.Write(byteResp)
-				if errWrite != nil {
-					m800log.Info(ctx, "proxy response write error: ", errWrite)
-				}
-			}
-		},
-	}
-	proxyMap.Store(forwardedHost, proxy)
-	return proxy
+			},
+		}
+
+		proxyMap.Store(forwardedHost, proxy)
+		output = proxy
+		return
+	})
+
+	result = resultI.(*httputil.ReverseProxy)
+	return
 }
 
 func CrossRegionNamespaceMiddleware(service, servicePort, localNamespace string, nsFunc func(c *gin.Context) (string, gopkg.CodeError), timeout time.Duration, proxyErrorCode int) gin.HandlerFunc {
@@ -379,20 +408,51 @@ func CrossRegionNamespaceMiddleware(service, servicePort, localNamespace string,
 		gotrace.AttachHttpTags(crossSp, tags)
 		crossSp.SetTag(TraceTagForward, forwardedHost)
 		crossSp.SetTag(TraceTagFromNs, localNamespace)
+		ctx.Set(goctx.LogKeyFromNamespace, localNamespace)
 		m800log.Debugf(ctx, "[cross region middleware] do the cross forward to :%s, cid: %s, path: %s", forwardedHost, cid, path)
+
+		// prepare metrics
+		nsLabel := prometheus.Labels{
+			labelFromNamespace: localNamespace,
+			labelToNamespace:   ns,
+		}
+
+		crossRegionStart := time.Now()
+		reqSz := float64(metrics.ComputeApproximateRequestSize(c.Request))
+		resSz := float64(0)
 
 		proxy := newProxy(ctx, forwardedHost, timeout, proxyErrorCode)
 		logWriter := m800log.GetLogger().WriterLevel(logrus.InfoLevel)
 		proxy.ErrorLog = log.New(logWriter, "", 0)
 		defer logWriter.Close()
 		defer func() {
+			// update metrics
+			totalCrossRegionRequestCounts.With(nsLabel).Inc()
+
+			currentCount := atomic.AddUint64(&currentRequestCount, -uint64(metricUnit))
+			currentCrossRegionRequestCounts.With(nsLabel).Set(float64(currentCount))
+
+			crossRegionElapsed := time.Since(crossRegionStart)
+			crossRegionRequestDuration.With(nsLabel).Observe(float64(crossRegionElapsed / time.Second))
+
+			crossRegionRequestSize.With(nsLabel).Observe(reqSz)
+
+			crossRegionResponseSize.With(nsLabel).Observe(resSz)
+
 			if err := recover(); err != nil {
 				// It could because downsteam or upstream disconnets. See https://github.com/gin-gonic/gin/issues/1714
 				if ne, ok := err.(error); ok && errors.Is(ne, http.ErrAbortHandler) {
 					ctx.Set(goctx.LogKeyErrorCode, CodePanic)
 
-					label := prometheus.Labels{labelDownstream: downstreamName(c), labelUpstream: service, labelUpstreamNamespace: ns}
+					// update metrics
+					label := prometheus.Labels{
+						labelDownstream:        downstreamName(c),
+						labelUpstream:          service,
+						labelUpstreamNamespace: ns,
+					}
 					proxyBrokenPipeCounts.With(label).Inc()
+
+					totalCrossRegionFailedRequestCounts.With(nsLabel).Inc()
 
 					m800log.Debugf(ctx, "[cross region middleware] cross region abort panic: %+v", ne)
 					return
@@ -400,8 +460,17 @@ func CrossRegionNamespaceMiddleware(service, servicePort, localNamespace string,
 				panic(err)
 			}
 		}()
+
+		// update metrics
+		currentCount := atomic.AddUint64(&currentRequestCount, uint64(metricUnit))
+		currentCrossRegionRequestCounts.With(nsLabel).Set(float64(currentCount))
+
 		ctx.InjectHTTPHeader(c.Request.Header)
 		proxy.ServeHTTP(c.Writer, c.Request)
+
+		// update metrics
+		resSz = float64(c.Writer.Size())
+
 		c.Abort()
 	}
 }
@@ -415,6 +484,7 @@ func CrossRegionMiddleware(service, servicePort, localNamespace string, timeout 
 	return CrossRegionNamespaceMiddleware(service, servicePort, localNamespace, nsFunc, timeout, proxyErrorCode)
 }
 
+// BanAnonymousMiddleware
 func BanAnonymousMiddleware(errCode gopkg.CodeError) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if _, ok := c.Request.Header[http.CanonicalHeaderKey(goctx.HTTPHeaderUserAnms)]; !ok {
