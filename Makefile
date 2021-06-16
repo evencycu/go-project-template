@@ -23,9 +23,10 @@ BLUEPRINT_PATH=blueprint/$(APP).apib
 export GOPRIVATE=gitlab.com*
 
 build:
-	go install -mod=mod -i -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
+	go install -mod=mod -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
 
 run: build
+	@echo "GOPATH: $(GOPATH)"
 	$(GOPATH)/bin/$(APP) server --config $(CONF)
 
 test:
