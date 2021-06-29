@@ -2,10 +2,13 @@ APP=go-project-template
 PKGPATH=gitlab.com/cake/gopkg
 GOPATH=$(shell env | grep GOPATH | cut -d'=' -f 2)
 CONF=local.toml
+
 SKAFFOLD_CONF=devops/skaffold.yaml
 SKAFFOLD_DEBUG_CONF=devops/debug/skaffold.yaml
+SKAFFOLD_TEMPLATE=devops/skaffold-template.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
 DEVOPSTOOL=$(GOPATH)/src/gitlab.com/cake/DevOps-Tools
+
 APPCONFIG=$(GOPATH)/src/gitlab.com/cake/app-config
 ARTIFACTORY=artifactory.maaii.com/lc-docker-local/
 DOCKERTAG=$(ARTIFACTORY)$(APP)
@@ -21,6 +24,7 @@ BR=$(shell git rev-parse --abbrev-ref HEAD)
 DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 BLUEPRINT_PATH=blueprint/$(APP).apib
 export GOPRIVATE=gitlab.com*
+SKAFFOLD_SUFFIX=ray
 
 build:
 	go install -mod=mod -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
@@ -73,10 +77,22 @@ kustomize: dockerpush
 	sed -i '5,8d' $(BASEDEPLOYMENT)
 	kubectl delete po $(shell kubectl get po | grep $(APP) | awk '{print $$1}')
 
-skdev: modvendor
-	skaffold dev -f $(SKAFFOLD_CONF) --trigger manual
+sktemplate:
+	@if [ -z "${SKAFFOLD_SUFFIX}" ]; then\
+		echo "environment variable: 'SKAFFOLD_SUFFIX' is not set";\
+		exit 1;\
+	fi
+	cp $(SKAFFOLD_TEMPLATE) $(SKAFFOLD_CONF)
+	sed -i'' -e 's/SKAFFOLD_SUFFIX/$(SKAFFOLD_SUFFIX)/g' $(SKAFFOLD_CONF)
+	- rm $(SKAFFOLD_CONF)-e
+	cp $(SKAFFOLD_KUSTOMIZE_TEMPLATE) $(SKAFFOLD_KUSTOMIZE_CONF)
+	sed -i'' -e 's/SKAFFOLD_SUFFIX/$(SKAFFOLD_SUFFIX)/g' $(SKAFFOLD_KUSTOMIZE_CONF)
+	- rm $(SKAFFOLD_KUSTOMIZE_CONF)-e
 
-skrun: modvendor
+skdev: sktemplate modvendor
+	skaffold dev -f $(SKAFFOLD_CONF) --trigger manual --port-forward
+
+skrun: sktemplate modvendor
 	skaffold run -f $(SKAFFOLD_CONF)
 
 skdelete:

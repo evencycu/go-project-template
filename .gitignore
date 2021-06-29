@@ -108,3 +108,7 @@ fabric.properties
 #/vendor/
 #vendor/
 /Godeps/
+
+devops/app-configuration
+devops/kustomization.yaml
+devops/skaffold.yaml
