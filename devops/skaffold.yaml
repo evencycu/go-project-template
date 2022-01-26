@@ -1,4 +1,4 @@
-apiVersion: skaffold/v1beta7
+apiVersion: skaffold/v2beta26
 kind: Config
 build:
   tagPolicy:
@@ -9,7 +9,12 @@ build:
       buildArgs:
         APPNAME: go-project-template
       dockerfile: devops/Dockerfile
-
+      cliFlags:   
+      - --platform=linux/amd64
+  local:
+    useDockerCLI: true
+    
 deploy:
   kustomize: 
-    path: devops/
+    paths: 
+    - devops/
