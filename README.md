@@ -19,6 +19,12 @@ reference to go.mod
 * metric (gin-prometheus)
 * mongodb (mgopool, high-level wrapper of mgo)
 
+## Prerequisite
+
+* [Docker](https://www.docker.com/products/docker-desktop)
+* [Skaffold](https://skaffold.dev/docs/install/) v1.35.1 or higher
+* [Kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/) v4.2.0 or higher
+
 ## How to create a new project
 
 0. OS environment setup
