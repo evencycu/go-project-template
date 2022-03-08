@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gitlab.com/cake/go-project-template/apiserver"
-	"gitlab.com/cake/intercom"
+	"gitlab.com/cake/golibs/intercom"
 )
 
 func NewAPICmd() *cobra.Command {

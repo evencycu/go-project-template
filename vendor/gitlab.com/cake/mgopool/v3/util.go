@@ -63,6 +63,9 @@ func EnsureUpsertOp(val interface{}) bson.M {
 		if _, exists := bsonObj[OpSet]; exists {
 			return bsonObj
 		}
+		if _, exists := bsonObj[OpSetOnInsert]; exists {
+			return bsonObj
+		}
 	}
 	return bson.M{OpSet: val}
 }

@@ -1,9 +1,9 @@
 module gitlab.com/cake/m800log
 
 require (
-	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.5.1
-	gitlab.com/cake/goctx v1.6.2
+	github.com/sirupsen/logrus v1.8.1
+	github.com/stretchr/testify v1.7.0
+	gitlab.com/cake/goctx v1.7.1
 )
 
 go 1.13

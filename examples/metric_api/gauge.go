@@ -4,11 +4,11 @@ import (
 	"math/rand"
 
 	"github.com/gin-gonic/gin"
-	"gitlab.com/cake/gopkg"
-	"gitlab.com/cake/intercom"
-	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/go-project-template/gpt"
 	"gitlab.com/cake/go-project-template/metric"
+	"gitlab.com/cake/golibs/intercom"
+	"gitlab.com/cake/gopkg"
+	"gitlab.com/cake/m800log"
 )
 
 func gauge(c *gin.Context) {

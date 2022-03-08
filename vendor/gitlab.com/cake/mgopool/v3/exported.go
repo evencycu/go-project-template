@@ -171,6 +171,11 @@ func FindAndRemove(ctx goctx.Context, dbName, collection string, result, selecto
 	return std.FindAndRemove(ctx, dbName, collection, result, selector, fields, sort...)
 }
 
+func FindAndModifyWithArrayFilters(ctx goctx.Context, dbName, collection string, result, selector, update, fields interface{},
+	upsert, returnNew bool, arrayFilters interface{}, sort ...string) (err gopkg.CodeError) {
+	return std.FindAndModifyWithArrayFilters(ctx, dbName, collection, result, selector, update, fields, upsert, returnNew, arrayFilters, sort...)
+}
+
 func Indexes(ctx goctx.Context, dbName, collection string) (result []map[string]interface{}, err gopkg.CodeError) {
 	return std.Indexes(ctx, dbName, collection)
 }

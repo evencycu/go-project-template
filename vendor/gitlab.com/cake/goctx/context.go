@@ -2,14 +2,14 @@ package goctx
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel/baggage"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type RWMutexInterface interface {
@@ -36,9 +36,11 @@ type Context interface {
 	HeaderKeyMap() (ret map[string]string)
 
 	// tracing method
-	GetSpan() opentracing.Span
-	StartSpanFromContext(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span
-	SetSpan(span opentracing.Span)
+	StartSpanFromContext(spanName string, opts ...oteltrace.SpanStartOption) oteltrace.Span
+	GetSpan() oteltrace.Span
+	SetSpan(span oteltrace.Span)
+	GetBaggage() baggage.Baggage
+	SetBaggage(baggage baggage.Baggage)
 
 	// header key transformation
 	SetShortenKey(key string, value interface{})
@@ -48,6 +50,7 @@ type Context interface {
 	SetTimeout(duration time.Duration) (cancel context.CancelFunc)
 	SetDeadline(d time.Time) (cancel context.CancelFunc)
 	Cancel() (cancel context.CancelFunc)
+	NativeContext() context.Context
 
 	// create child goctx
 	WithCancel() (ctx *MapContext, cancel context.CancelFunc)
@@ -75,6 +78,7 @@ func Background() Context {
 		m:       &sync.Map{},
 	}
 }
+
 func TODO() Context {
 	return &MapContext{
 		Context: context.TODO(),
@@ -88,7 +92,8 @@ func (c *MapContext) Set(key string, value interface{}) {
 }
 
 func (c *MapContext) Get(key string) interface{} {
-	return c.Value(key)
+	value, _ := c.m.Load(key)
+	return value
 }
 
 func (c *MapContext) Done() <-chan struct{} {
@@ -167,12 +172,10 @@ func (c *MapContext) MapString() (ret map[string]string) {
 		return true
 	})
 
-	if sp := opentracing.SpanFromContext(c.Context); sp != nil {
-		uti := fmt.Sprintf("%s", sp)
-		if uti != "" && uti != emptyObjectUti {
-			ret[LogKeyTrace] = uti
-		}
+	if sp := oteltrace.SpanFromContext(c.Context); sp != nil && sp.SpanContext().TraceID().IsValid() {
+		ret[LogKeyTraceID] = sp.SpanContext().TraceID().String()
 	}
+
 	return
 }
 
@@ -197,6 +200,10 @@ func (c *MapContext) Cancel() (cancel context.CancelFunc) {
 	return
 }
 
+func (c *MapContext) NativeContext() context.Context {
+	return c.Context
+}
+
 func (c *MapContext) InjectHTTPHeader(rh http.Header) {
 	for hk, sk := range c.HeaderKeyMap() {
 		if s := rh.Get(hk); len(s) == 0 {
@@ -214,12 +221,11 @@ func (c *MapContext) HeaderKeyMap() (ret map[string]string) {
 			ret[hk] = v
 		}
 	}
-	if sp := c.GetSpan(); sp != nil {
-		uti := fmt.Sprintf("%s", sp)
-		if uti != "" && uti != emptyObjectUti {
-			ret[HTTPHeaderTrace] = uti
-		}
+
+	if sp := oteltrace.SpanFromContext(c.Context); sp != nil && sp.SpanContext().TraceID().IsValid() {
+		ret[LogKeyTraceID] = sp.SpanContext().TraceID().String()
 	}
+
 	switch role := c.Get(LogKeyUserRole).(type) {
 	case string:
 		ret[HTTPHeaderUserRole] = role
@@ -252,9 +258,11 @@ func (c *MapContext) Err() error {
 	return c.Context.Err()
 }
 
+// Value is the native context.Value() wrap implementation of MapContext.
+// We don't expose any method to set value in native context.
+// We only set tracing span into native context to fit the open source library interface.
 func (c *MapContext) Value(key interface{}) interface{} {
-	value, _ := c.m.Load(key)
-	return value
+	return c.Context.Value(key)
 }
 
 func (c *MapContext) Deadline() (deadline time.Time, ok bool) {

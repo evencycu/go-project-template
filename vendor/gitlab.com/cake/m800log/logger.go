@@ -302,3 +302,7 @@ func stackTrace() string {
 
 	return string(buf[:size])
 }
+
+func GetAccessLevel() logrus.Level {
+	return accessLevel
+}

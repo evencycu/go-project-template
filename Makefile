@@ -24,7 +24,7 @@ BR=$(shell git rev-parse --abbrev-ref HEAD)
 DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 BLUEPRINT_PATH=blueprint/$(APP).apib
 export GOPRIVATE=gitlab.com*
-SKAFFOLD_SUFFIX=ray
+SKAFFOLD_SUFFIX=george
 
 build:
 	go install -mod=mod -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
@@ -49,9 +49,15 @@ modrun:
 
 modvendor:
 	- rm go.sum
-	go build -mod=mod -v $(SOURCE)
+	go build -mod=mod -tags dynamic -v $(SOURCE)
 	go mod tidy
 	go mod vendor
+
+mongo:
+	docker run -ti --rm -p 27017:27017 --network mongo --name mongo \
+		-e MONGO_INITDB_ROOT_USERNAME=admin \
+		-e MONGO_INITDB_ROOT_PASSWORD=secret \
+		mongo:5.0.6
 
 modcheck:
 	go list -mod=mod -m -u all

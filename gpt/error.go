@@ -3,7 +3,7 @@ package gpt
 import (
 	"net/http"
 
-	"gitlab.com/cake/intercom"
+	"gitlab.com/cake/golibs/intercom"
 )
 
 const (

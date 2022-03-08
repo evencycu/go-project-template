@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"gitlab.com/cake/go-project-template/gpt"
-	"gitlab.com/cake/intercom"
+	"gitlab.com/cake/golibs/intercom"
 )
 
 func AddErrorEndpoint(rootGroup *gin.RouterGroup) {

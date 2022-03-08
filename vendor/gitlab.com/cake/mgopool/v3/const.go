@@ -1,5 +1,7 @@
 package mgopool
 
+import "go.opentelemetry.io/otel/attribute"
+
 const (
 	dollar = "$"
 )
@@ -74,15 +76,21 @@ const (
 	MongoMsgGetPoolTimeout       = "timed out while checking out a connection from connection pool"
 	MongoMsgDocNil               = "document is nil"
 	MongoMsgServerSelectionError = "server selection error"
-	MongoMsgInvaildBson          = "(InvalidBSON)"
+	MongoMsgInvalidBson          = "(InvalidBSON)"
 	MongoMsgBadValue             = "(BadValue)"
+	MongoMsgRegexNull            = "regex values cannot contain null bytes"
+	MongoMsgCannotTransform      = "cannot transform type"
 )
 
 // wrapped error msg
-
 const (
 	MgopoolBadConnection = "bad connection/cluster unhealthy"
 	MgopoolOpTimeout     = "operation timeout"
+)
+
+const (
+	DBErrorCodeKey    = attribute.Key("db.error.code")
+	DBErrorMessageKey = attribute.Key("db.error.message")
 )
 
 const (
@@ -101,11 +109,13 @@ const (
 	OpPush      = "$push"
 	OpPull      = "$pull"
 	OpIn        = "$in"
+	OpAll       = "$all"
 	OpNin       = "$nin"
 	OpExists    = "$exists"
 	OpAnd       = "$and"
 	OpOr        = "$or"
 	OpNor       = "$nor"
+	OpNot       = "$not"
 	OpRegex     = "$regex"
 	OpInc       = "$inc"
 	OpElemMatch = "$elemMatch"

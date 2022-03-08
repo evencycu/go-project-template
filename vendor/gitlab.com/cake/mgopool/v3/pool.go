@@ -14,8 +14,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 
 	"github.com/eaglerayp/go-conntrack"
+	"go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo"
 )
 
 // AlertChannel put error message, wait for outer user (i.e., gobuster) pick and send.
@@ -35,8 +37,12 @@ type DBInfo struct {
 	MaxConnectAttempts int
 	Timeout            time.Duration
 	ReadMode           readpref.Mode
-	Direct             bool
-	Mongos             bool
+	// if not set, follow mongoDB default
+	// 4.2: 1
+	// 5.0: majority
+	WriteConcern *writeconcern.WriteConcern
+	Direct       bool
+	Mongos       bool
 }
 
 // NewDBInfo
@@ -58,6 +64,10 @@ func NewDBInfo(name string, addrs []string, user, password, authdbName string,
 		ReadMode:     readMode,
 		Mongos:       mongos,
 	}
+}
+
+func (dbi *DBInfo) SetWriteConcern(writeconcern *writeconcern.WriteConcern) {
+	dbi.WriteConcern = writeconcern
 }
 
 // Pool is the mgo session pool
@@ -82,6 +92,7 @@ func newClient(dbi *DBInfo, addrs []string) (newClient *mongo.Client, err error)
 		conntrack.DialWithName("mgopool"),
 		conntrack.DialWithTracing(),
 	)
+	clientOpt.SetMonitor(otelmongo.NewMonitor())
 	clientOpt.SetDialer(conntrackDialer)
 	clientOpt.SetAppName(gopkg.GetAppName())
 	clientOpt.SetConnectTimeout(dbi.Timeout)
@@ -92,6 +103,10 @@ func newClient(dbi *DBInfo, addrs []string) (newClient *mongo.Client, err error)
 	readPref, _ := readpref.New(dbi.ReadMode)
 	clientOpt.SetReadPreference(readPref)
 	// The default read preference is primary
+
+	if dbi.WriteConcern != nil {
+		clientOpt.SetWriteConcern(dbi.WriteConcern)
+	}
 
 	maxAttempts := 10
 	if dbi.MaxConnectAttempts > 0 {

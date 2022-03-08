@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,14 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	jaeger "github.com/uber/jaeger-client-go"
-	jaegercfg "github.com/uber/jaeger-client-go/config"
+	m800trace "gitlab.com/cake/golibs/trace"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gitlab.com/cake/gopkg"
-	"gitlab.com/cake/gotrace/v2"
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool/v3"
 	"gitlab.com/cake/redispool"
@@ -50,6 +46,16 @@ func NewServerCmd() *cobra.Command {
 				defer closer.Close()
 			}
 			m800log.Infof(systemCtx, "[go-project-template] init config: %+v", viper.AllSettings())
+
+			tp, err := m800trace.InitTracer(gopkg.GetAppName(), gpt.GetNamespace(), 1)
+			if err != nil {
+				panic(err)
+			}
+			defer func() {
+				if err := tp.Shutdown(context.Background()); err != nil {
+					m800log.Panicf(systemCtx, "Error shutting down tracer provider: %v", err)
+				}
+			}()
 
 			if viper.GetBool("app.prof") {
 				ActivateProfile()
@@ -126,52 +132,28 @@ func initInfra(config string) (closer io.Closer, err error) {
 
 	m800log.SetM800JSONFormatter(viper.GetString("log.timestamp_format"), gopkg.GetAppName(), gopkg.GetVersion().Version, gpt.GetPhaseEnv(), gpt.GetNamespace())
 	_ = m800log.SetAccessLevel(viper.GetString("log.access_level"))
-	// Init tracer
-	return initTracer()
-}
 
-func initTracer() (closer io.Closer, err error) {
-	if !viper.GetBool("jaeger.enabled") {
-		log.Println("Jaeger disabled")
-		return
-	}
-	sConf := &jaegercfg.SamplerConfig{
-		Type:  jaeger.SamplerTypeRateLimiting,
-		Param: viper.GetFloat64("jaeger.sample_rate"),
-	}
-	rConf := &jaegercfg.ReporterConfig{
-		QueueSize:           viper.GetInt("jaeger.queue_size"),
-		BufferFlushInterval: viper.GetDuration("jaeger.flush_interval"),
-		LocalAgentHostPort:  viper.GetString("jaeger.host"),
-		LogSpans:            viper.GetBool("jaeger.log_spans"),
-	}
-	log.Printf("Sampler Config:%+v\nReporterConfig:%+v\n", sConf, rConf)
-	closer, err = gotrace.InitJaeger(gopkg.GetAppName(), sConf, rConf)
-	if err != nil {
-		err = fmt.Errorf("init tracer error:%s", err.Error())
-		return
-	}
 	return
 }
 
-func newKafkaProducerConfig() *kafka.ConfigMap {
-	return &kafka.ConfigMap{
-		"bootstrap.servers": viper.GetString("kafka.bootstrap_servers"),
-		"security.protocol": viper.GetString("kafka.security_protocol"),
-		"ssl.ca.location":   viper.GetString("kafka.ssl_ca_location"),
-		"sasl.mechanism":    viper.GetString("kafka.sasl_mechanism"),
-		"sasl.username":     viper.GetString("kafka.sasl_username"),
-		"sasl.password":     viper.GetString("kafka.sasl_password"),
+// func newKafkaProducerConfig() *kafka.ConfigMap {
+// 	return &kafka.ConfigMap{
+// 		"bootstrap.servers": viper.GetString("kafka.bootstrap_servers"),
+// 		"security.protocol": viper.GetString("kafka.security_protocol"),
+// 		"ssl.ca.location":   viper.GetString("kafka.ssl_ca_location"),
+// 		"sasl.mechanism":    viper.GetString("kafka.sasl_mechanism"),
+// 		"sasl.username":     viper.GetString("kafka.sasl_username"),
+// 		"sasl.password":     viper.GetString("kafka.sasl_password"),
 
-		// producer config
-		"go.batch.producer":       viper.GetBool("kafka.go_batch_producer"),
-		"go.events.channel.size":  viper.GetInt("kafka.events_channel_size"),
-		"go.produce.channel.size": viper.GetInt("kafka.produce_channel_size"),
-		// idempotence reduce duplicate message
-		"enable.idempotence": viper.GetBool("kafka.enable_idempotence"),
-		"acks":               viper.GetInt("kafka.acks"),
-	}
-}
+// 		// producer config
+// 		"go.batch.producer":       viper.GetBool("kafka.go_batch_producer"),
+// 		"go.events.channel.size":  viper.GetInt("kafka.events_channel_size"),
+// 		"go.produce.channel.size": viper.GetInt("kafka.produce_channel_size"),
+// 		// idempotence reduce duplicate message
+// 		"enable.idempotence": viper.GetBool("kafka.enable_idempotence"),
+// 		"acks":               viper.GetInt("kafka.acks"),
+// 	}
+// }
 
 func getLocalMongoDBInfo() *mgopool.DBInfo {
 	name := viper.GetString("database.mgo.name")

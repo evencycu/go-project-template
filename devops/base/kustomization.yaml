@@ -10,7 +10,6 @@ resources:
   - service.yaml
 patchesStrategicMerge:
   - envHttp.yaml
-  - envJaeger.yaml
   - envLog.yaml
   - envMongo.yaml
-  - jaegerSidecar.yaml
+  - envOTEL.yaml

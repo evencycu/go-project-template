@@ -10,16 +10,17 @@ import (
 	"sync"
 	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/cake/goctx"
 	"gitlab.com/cake/gopkg"
-	"gitlab.com/cake/gotrace/v2"
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool/v3/compat"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const (
@@ -76,7 +77,7 @@ const (
 
 var (
 	emptyBulkResult = BulkResult{}
-	noOpSpan        = opentracing.NoopTracer{}.StartSpan("")
+	tracer          = otel.GetTracerProvider().Tracer("gitlab.com/cake/mgopool")
 )
 
 type MongoPool interface {
@@ -121,6 +122,7 @@ type MongoPool interface {
 	FindAndModify(ctx goctx.Context, dbName, collection string, result, selector, update, fields interface{}, upsert, returnNew bool, sort ...string) (err gopkg.CodeError)
 	FindAndReplace(ctx goctx.Context, dbName, collection string, result, selector, replacement, fields interface{}, upsert, returnNew bool, sort ...string) (err gopkg.CodeError)
 	FindAndRemove(ctx goctx.Context, dbName, collection string, result, selector, fields interface{}, sort ...string) (err gopkg.CodeError)
+	FindAndModifyWithArrayFilters(ctx goctx.Context, dbName, collection string, result, selector, update, fields interface{}, upsert, returnNew bool, arrayFilters interface{}, sort ...string) (err gopkg.CodeError)
 	Indexes(ctx goctx.Context, dbName, collection string) (result []map[string]interface{}, err gopkg.CodeError)
 	CreateIndex(ctx goctx.Context, dbName, collection string, key []string, sparse, unique bool, name string) (err gopkg.CodeError)
 	CreateTTLIndex(ctx goctx.Context, dbName, collection string, key string, ttlSec int) (err gopkg.CodeError)
@@ -154,12 +156,12 @@ type MongoCursor interface {
 	TryNext(ctx context.Context) bool
 }
 
-func createMongoSpan(ctx goctx.Context, funcName string) opentracing.Span {
-	if ctx.GetSpan() == nil {
-		return noOpSpan
-	}
-	return gotrace.CreateChildOfSpan(ctx, funcName)
-}
+// func createMongoSpan(ctx goctx.Context, funcName string) opentracing.Span {
+// 	if ctx.GetSpan() == nil {
+// 		return noOpSpan
+// 	}
+// 	return gotrace.CreateChildOfSpan(ctx, funcName)
+// }
 
 func badConnection(s string) bool {
 	switch {
@@ -196,6 +198,9 @@ func (p *Pool) resultHandling(err error, ctx goctx.Context) gopkg.CodeError {
 		return nil
 	}
 
+	_, span := tracer.Start(ctx, "mongo result handling")
+	defer span.End()
+
 	errorString := err.Error()
 	code := UnknownError
 
@@ -209,7 +214,7 @@ func (p *Pool) resultHandling(err error, ctx goctx.Context) gopkg.CodeError {
 		errorString = "document already exists:" + strings.Replace(errorString, MongoMsgE11000, "", 1)
 	case strings.HasSuffix(errorString, MongoMsgCollectionConflict):
 		code = CollectionConflict
-	case errorString == MongoMsgDocNil, strings.HasPrefix(errorString, MongoMsgInvaildBson), strings.HasPrefix(errorString, MongoMsgBadValue):
+	case errorString == MongoMsgDocNil, strings.HasPrefix(errorString, MongoMsgInvalidBson), strings.HasPrefix(errorString, MongoMsgBadValue), strings.HasPrefix(errorString, MongoMsgCannotTransform):
 		code = BadInputDoc
 	case strings.Contains(errorString, MongoMsgArray), strings.Contains(errorString, MongoMsgNonEmpty), strings.Contains(errorString, MongoMsgInArray):
 		code = QueryInputArray
@@ -239,26 +244,31 @@ func (p *Pool) resultHandling(err error, ctx goctx.Context) gopkg.CodeError {
 	}
 
 	ctx.Set(goctx.LogKeyErrorCode, code)
+	span.SetStatus(codes.Error, "")
+	span.SetAttributes(
+		DBErrorCodeKey.Int(code),
+		DBErrorMessageKey.String(errorString),
+	)
 	return gopkg.NewCarrierCodeError(code, errorString)
 }
 
 // Ping change default behavior to primary
 func (p *Pool) Ping(ctx goctx.Context) (err gopkg.CodeError) {
-	errPing := p.client.Ping(ctx, readpref.Primary())
+	errPing := p.client.Ping(ctx.NativeContext(), readpref.Primary())
 	err = p.resultHandling(errPing, ctx)
 	return
 }
 
 // PingPref ping with given pref, nil would use client pref
 func (p *Pool) PingPref(ctx goctx.Context, pref *readpref.ReadPref) (err gopkg.CodeError) {
-	errPing := p.client.Ping(ctx, pref)
+	errPing := p.client.Ping(ctx.NativeContext(), pref)
 	err = p.resultHandling(errPing, ctx)
 	return
 }
 
 // GetCollectionNames return all collection names in the db.
 func (p *Pool) GetCollectionNames(ctx goctx.Context, dbName string) (names []string, err gopkg.CodeError) {
-	names, errDB := p.client.Database(dbName, databaseOptions).ListCollectionNames(ctx, bson.M{})
+	names, errDB := p.client.Database(dbName, databaseOptions).ListCollectionNames(ctx.NativeContext(), bson.M{})
 	err = p.resultHandling(errDB, ctx)
 	return
 }
@@ -267,17 +277,11 @@ func (p *Pool) CollectionCount(ctx goctx.Context, dbName, collection string) (n 
 	start := time.Now()
 	defer updateMetrics(operationLabelCollectionCount, start, &err)
 
-	sp := createMongoSpan(ctx, FuncCollectionCount)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
-	_n, errDB := col.CountDocuments(ctx, bson.M{})
+	_n, errDB := col.CountDocuments(ctx.NativeContext(), bson.M{})
 	n = int(_n)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	sp.SetTag(TraceTagCriteria, collection)
+
 	return
 }
 
@@ -285,16 +289,11 @@ func (p *Pool) Run(ctx goctx.Context, cmd interface{}, result interface{}) (err 
 	start := time.Now()
 	defer updateMetrics(operationLabelRun, start, &err)
 
-	sp := createMongoSpan(ctx, FuncRun)
-	defer sp.Finish()
-
-	errDB := p.client.Database("admin", databaseOptions).RunCommand(ctx, cmd).Decode(result)
+	errDB := p.client.Database("admin", databaseOptions).RunCommand(ctx.NativeContext(), cmd).Decode(result)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	logMsg := fmt.Sprintf("DB Operations:%+v ,Result:%+v", cmd, result)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "DB Operations: " + formatMsg(cmd, level) + " ,Result: " + formatMsg(result, level)
+
 	infoLog(ctx, p.LiveServers(), logMsg)
 	return
 }
@@ -303,16 +302,12 @@ func (p *Pool) DBRun(ctx goctx.Context, dbName string, cmd, result interface{}) 
 	start := time.Now()
 	defer updateMetrics(operationLabelDBRun, start, &err)
 
-	sp := createMongoSpan(ctx, FuncDBRun)
-	defer sp.Finish()
-
-	errDB := p.client.Database(dbName, databaseOptions).RunCommand(ctx, cmd).Decode(result)
+	errDB := p.client.Database(dbName, databaseOptions).RunCommand(ctx.NativeContext(), cmd).Decode(result)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	logMsg := fmt.Sprintf("DB Operations:%+v ,Result:%+v", cmd, result)
-	sp.SetTag(TraceTagCriteria, logMsg)
+
+	level := getAccessLevel()
+	logMsg := "DB Operations: " + formatMsg(cmd, level) + " ,Result: " + formatMsg(result, level)
+
 	infoLog(ctx, p.LiveServers(), logMsg)
 	return
 }
@@ -322,17 +317,13 @@ func (p *Pool) Insert(ctx goctx.Context, dbName, collection string, doc interfac
 	defer updateMetrics(operationLabelInsert, start, &err)
 
 	// Insert document to collection
-	sp := createMongoSpan(ctx, FuncInsert)
-	defer sp.Finish()
 
 	col := getMongoCollection(p.client, dbName, collection)
-	_, errDB := col.InsertOne(ctx, doc)
+	_, errDB := col.InsertOne(ctx.NativeContext(), doc)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	logMsg := fmt.Sprintf("Collection:%s,Stuff:%+v", collection, doc)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Stuff: " + formatMsg(doc, level)
+
 	accessLog(ctx, p.LiveServers(), FuncInsert, logMsg, start)
 	return
 }
@@ -341,21 +332,16 @@ func (p *Pool) Distinct(ctx goctx.Context, dbName, collection string, selector b
 	start := time.Now()
 	defer updateMetrics(operationLabelDistinct, start, &err)
 
-	sp := createMongoSpan(ctx, FuncDistinct)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
-	resDB, errDB := col.Distinct(ctx, field, selector)
+	resDB, errDB := col.Distinct(ctx.NativeContext(), field, selector)
 	defer func() {
-		logMsg := fmt.Sprintf("Collection:%s,Field:%+v", collection, field)
-		sp.SetTag(TraceTagCriteria, logMsg)
+		level := getAccessLevel()
+		logMsg := "Collection: " + formatMsg(collection, level) + " ,Field: " + formatMsg(field, level)
+
 		accessLog(ctx, p.LiveServers(), FuncDistinct, logMsg, start)
 	}()
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-		return
-	}
+
 	byteData, _ := json.Marshal(resDB)
 
 	errUnmarshal := json.Unmarshal(byteData, result)
@@ -369,21 +355,15 @@ func (p *Pool) Remove(ctx goctx.Context, dbName, collection string, selector int
 	start := time.Now()
 	defer updateMetrics(operationLabelRemove, start, &err)
 
-	sp := createMongoSpan(ctx, FuncRemove)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
-	deleteResult, errDB := col.DeleteOne(ctx, selector)
+	deleteResult, errDB := col.DeleteOne(ctx.NativeContext(), selector)
 	err = p.resultHandling(errDB, ctx)
 	if deleteResult != nil && deleteResult.DeletedCount == int64(0) && err == nil { // align to mgo behavior
 		err = gopkg.NewCodeError(NotFound, MongoMsgDocumentsNotFound)
 	}
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(selector, level)
 
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v", collection, selector)
-	sp.SetTag(TraceTagCriteria, logMsg)
 	accessLog(ctx, p.LiveServers(), FuncRemove, logMsg, start)
 	return
 }
@@ -392,21 +372,16 @@ func (p *Pool) RemoveAll(ctx goctx.Context, dbName, collection string, selector 
 	start := time.Now()
 	defer updateMetrics(operationLabelRemoveAll, start, &err)
 
-	sp := createMongoSpan(ctx, FuncRemoveAll)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
-	res, errDB := col.DeleteMany(ctx, selector)
+	res, errDB := col.DeleteMany(ctx.NativeContext(), selector)
 	if res != nil {
 		removedCount = int(res.DeletedCount)
 	}
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v", collection, selector)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(selector, level)
+
 	accessLog(ctx, p.LiveServers(), FuncRemoveAll, logMsg, start)
 	return
 }
@@ -415,26 +390,22 @@ func (p *Pool) ReplaceOne(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelReplaceOne, start, &err)
 
-	sp := createMongoSpan(ctx, FuncUpdate)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
 	opts := &options.ReplaceOptions{
 		Upsert: &upsert,
 	}
 	var updateResult *mongo.UpdateResult
 	var errDB error
-	updateResult, errDB = col.ReplaceOne(ctx, selector, update, opts)
+	updateResult, errDB = col.ReplaceOne(ctx.NativeContext(), selector, update, opts)
 	err = p.resultHandling(errDB, ctx)
 	if updateResult != nil && updateResult.MatchedCount == 0 && err == nil { // align to mgo behavior
 		err = gopkg.NewCodeError(NotFound, MongoMsgDocumentsNotFound)
 	}
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Replace:%+v Upsert:%v", collection, selector, update, upsert)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(selector, level) +
+		" ,Replace: " + formatMsg(update, level) + " ,Upsert: " + formatMsg(upsert, level)
+
 	accessLog(ctx, p.LiveServers(), FuncUpdate, logMsg, start)
 	return
 }
@@ -443,28 +414,23 @@ func (p *Pool) Update(ctx goctx.Context, dbName, collection string, selector int
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdate, start, &err)
 
-	sp := createMongoSpan(ctx, FuncUpdate)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
 	setOp, hasOp := EnsureUpdateOp(update)
 	var updateResult *mongo.UpdateResult
 	var errDB error
 	if hasOp {
-		updateResult, errDB = col.UpdateOne(ctx, selector, setOp)
+		updateResult, errDB = col.UpdateOne(ctx.NativeContext(), selector, setOp)
 	} else {
-		updateResult, errDB = col.ReplaceOne(ctx, selector, update)
+		updateResult, errDB = col.ReplaceOne(ctx.NativeContext(), selector, update)
 	}
 	err = p.resultHandling(errDB, ctx)
 	if updateResult != nil && updateResult.MatchedCount == 0 && err == nil { // align to mgo behavior
 		err = gopkg.NewCodeError(NotFound, MongoMsgDocumentsNotFound)
 	}
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Update:%+v", collection, selector, update)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(selector, level) + " ,Update: " + formatMsg(update, level)
+
 	accessLog(ctx, p.LiveServers(), FuncUpdate, logMsg, start)
 	return
 }
@@ -473,19 +439,14 @@ func (p *Pool) UpdateAll(ctx goctx.Context, dbName, collection string, selector 
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdateAll, start, &err)
 
-	sp := createMongoSpan(ctx, FuncUpdateAll)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
 	setOp, _ := EnsureUpdateOp(update)
-	result, errDB := col.UpdateMany(ctx, selector, setOp)
+	result, errDB := col.UpdateMany(ctx.NativeContext(), selector, setOp)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Update:%+v", collection, selector, update)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(selector, level) + " ,Update: " + formatMsg(update, level)
+
 	accessLog(ctx, p.LiveServers(), FuncUpdateAll, logMsg, start)
 	return
 }
@@ -494,17 +455,13 @@ func (p *Pool) UpdateId(ctx goctx.Context, dbName, collection string, id interfa
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdateId, start, &err)
 
-	sp := createMongoSpan(ctx, FuncUpdateId)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
-	_, errDB := col.UpdateOne(ctx, bson.M{"_id": id}, update)
+	_, errDB := col.UpdateOne(ctx.NativeContext(), bson.M{"_id": id}, update)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Update:%+v", collection, id, update)
-	sp.SetTag(TraceTagCriteria, logMsg)
+
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(id, level) + " ,Update: " + formatMsg(update, level)
+
 	accessLog(ctx, p.LiveServers(), FuncUpdateId, logMsg, start)
 	return
 }
@@ -512,9 +469,6 @@ func (p *Pool) UpdateId(ctx goctx.Context, dbName, collection string, id interfa
 func (p *Pool) UpdateWithArrayFilters(ctx goctx.Context, dbName, collection string, selector interface{}, update interface{}, arrayFilters interface{}, multi bool) (result *mongo.UpdateResult, err gopkg.CodeError) {
 	start := time.Now()
 	defer updateMetrics(operationLabelUpdateWithArrayFilters, start, &err)
-
-	sp := createMongoSpan(ctx, FuncUpdateWithArrayFilters)
-	defer sp.Finish()
 
 	if reflect.TypeOf(arrayFilters).Kind() != reflect.Slice {
 		return nil, gopkg.NewCarrierCodeError(QueryInputArray, "query format error: arrayFilters is expected to be an array")
@@ -529,16 +483,17 @@ func (p *Pool) UpdateWithArrayFilters(ctx goctx.Context, dbName, collection stri
 	var errDB error
 	updateOpt := options.Update().SetArrayFilters(options.ArrayFilters{Filters: filters})
 	setOp, _ := EnsureUpdateOp(update)
-	result, errDB = col.UpdateMany(ctx, selector, setOp, updateOpt)
+	result, errDB = col.UpdateMany(ctx.NativeContext(), selector, setOp, updateOpt)
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
 		return
 	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Update:%+v,ArrayFilters:%+v", collection, selector, update, arrayFilters)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(selector, level) +
+		" ,Update: " + formatMsg(update, level) + " ,ArrayFilters: " + formatMsg(arrayFilters, level)
 	accessLog(ctx, p.LiveServers(), FuncUpdateWithArrayFilters, logMsg, start)
-	sp.SetTag(TraceTagCriteria, logMsg)
+
 	return
 }
 
@@ -546,23 +501,20 @@ func (p *Pool) Upsert(ctx goctx.Context, dbName, collection string, selector int
 	start := time.Now()
 	defer updateMetrics(operationLabelUpsert, start, &err)
 
-	sp := createMongoSpan(ctx, FuncUpsert)
-	defer sp.Finish()
-
 	col := getMongoCollection(p.client, dbName, collection)
 	updateOpt := options.Update().SetUpsert(true)
 	var errDB error
 	update = EnsureUpsertOp(update)
-	result, errDB = col.UpdateOne(ctx, selector, update, updateOpt)
+	result, errDB = col.UpdateOne(ctx.NativeContext(), selector, update, updateOpt)
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
 		return
 	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Selector:%+v,Upsert:%+v", collection, selector, update)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Selector: " + formatMsg(selector, level) + " ,Update: " + formatMsg(update, level)
 	accessLog(ctx, p.LiveServers(), FuncUpsert, logMsg, start)
-	sp.SetTag(TraceTagCriteria, logMsg)
+
 	return
 }
 
@@ -570,11 +522,8 @@ func (p *Pool) BulkInsert(ctx goctx.Context, dbName, collection string, document
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkInsert, start, &err)
 
-	sp := createMongoSpan(ctx, FuncBulkInsert)
-	defer sp.Finish()
-
 	if len(documents) == 0 {
-		sp.SetTag(TraceTagInfo, traceMsgEmptyElements)
+
 		result = &emptyBulkResult
 		return
 	}
@@ -589,14 +538,10 @@ func (p *Pool) BulkInsert(ctx goctx.Context, dbName, collection string, document
 
 	col := getMongoCollection(p.client, dbName, collection)
 	insertManyOpt := options.InsertMany().SetOrdered(false)
-	res, errDB := col.InsertMany(ctx, interfaces, insertManyOpt)
+	res, errDB := col.InsertMany(ctx.NativeContext(), interfaces, insertManyOpt)
 	result = MergeBulkResult(res, errDB)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	sp.SetTag(TraceTagCriteria, collection)
 	accessLog(ctx, p.LiveServers(), FuncBulkInsert, collection, start)
 	return
 }
@@ -605,11 +550,8 @@ func (p *Pool) BulkUpsert(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpsert, start, &err)
 
-	sp := createMongoSpan(ctx, FuncBulkUpsert)
-	defer sp.Finish()
-
 	if len(selectors) == 0 || len(documents) == 0 {
-		sp.SetTag(TraceTagInfo, traceMsgEmptyElements)
+
 		result = &emptyBulkResult
 		return
 	}
@@ -637,14 +579,10 @@ func (p *Pool) BulkUpsert(ctx goctx.Context, dbName, collection string, selector
 
 	col := getMongoCollection(p.client, dbName, collection)
 	bulkWriteOpt := options.BulkWrite().SetOrdered(false)
-	res, errDB := col.BulkWrite(ctx, writeModels, bulkWriteOpt)
+	res, errDB := col.BulkWrite(ctx.NativeContext(), writeModels, bulkWriteOpt)
 	result = MergeBulkResult(res, errDB)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	sp.SetTag(TraceTagCriteria, collection)
 	accessLog(ctx, p.LiveServers(), FuncBulkUpsert, collection, start)
 	return
 }
@@ -653,11 +591,8 @@ func (p *Pool) BulkUpdate(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpdate, start, &err)
 
-	sp := createMongoSpan(ctx, FuncBulkUpdate)
-	defer sp.Finish()
-
 	if len(selectors) == 0 || len(documents) == 0 {
-		sp.SetTag(TraceTagInfo, traceMsgEmptyElements)
+
 		result = &emptyBulkResult
 		return
 	}
@@ -685,14 +620,10 @@ func (p *Pool) BulkUpdate(ctx goctx.Context, dbName, collection string, selector
 
 	col := getMongoCollection(p.client, dbName, collection)
 	bulkWriteOpt := options.BulkWrite().SetOrdered(false)
-	res, errDB := col.BulkWrite(ctx, writeModels, bulkWriteOpt)
+	res, errDB := col.BulkWrite(ctx.NativeContext(), writeModels, bulkWriteOpt)
 	result = MergeBulkResult(res, errDB)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	sp.SetTag(TraceTagCriteria, collection)
 	accessLog(ctx, p.LiveServers(), FuncBulkUpdate, collection, start)
 	return
 }
@@ -701,25 +632,18 @@ func (p *Pool) BulkInsertInterfaces(ctx goctx.Context, dbName, collection string
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkInsertInterfaces, start, &err)
 
-	sp := createMongoSpan(ctx, FuncBulkInsert)
-	defer sp.Finish()
-
 	if len(documents) == 0 {
-		sp.SetTag(TraceTagInfo, traceMsgEmptyElements)
+
 		result = &emptyBulkResult
 		return
 	}
 
 	col := getMongoCollection(p.client, dbName, collection)
 	insertManyOpt := options.InsertMany().SetOrdered(false)
-	res, errDB := col.InsertMany(ctx, documents, insertManyOpt)
+	res, errDB := col.InsertMany(ctx.NativeContext(), documents, insertManyOpt)
 	result = MergeBulkResult(res, errDB)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	sp.SetTag(TraceTagCriteria, collection)
 	accessLog(ctx, p.LiveServers(), FuncBulkInsert, collection, start)
 	return
 }
@@ -728,11 +652,8 @@ func (p *Pool) BulkUpsertInterfaces(ctx goctx.Context, dbName, collection string
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpsertInterfaces, start, &err)
 
-	sp := createMongoSpan(ctx, FuncBulkUpsert)
-	defer sp.Finish()
-
 	if len(selectors) == 0 || len(documents) == 0 {
-		sp.SetTag(TraceTagInfo, traceMsgEmptyElements)
+
 		result = &emptyBulkResult
 		return
 	}
@@ -750,14 +671,10 @@ func (p *Pool) BulkUpsertInterfaces(ctx goctx.Context, dbName, collection string
 
 	col := getMongoCollection(p.client, dbName, collection)
 	bulkWriteOpt := options.BulkWrite().SetOrdered(false)
-	res, errDB := col.BulkWrite(ctx, writeModels, bulkWriteOpt)
+	res, errDB := col.BulkWrite(ctx.NativeContext(), writeModels, bulkWriteOpt)
 	result = MergeBulkResult(res, errDB)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	sp.SetTag(TraceTagCriteria, collection)
 	accessLog(ctx, p.LiveServers(), FuncBulkUpsert, collection, start)
 	return
 }
@@ -766,11 +683,8 @@ func (p *Pool) BulkUpdateInterfaces(ctx goctx.Context, dbName, collection string
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkUpdateInterfaces, start, &err)
 
-	sp := createMongoSpan(ctx, FuncBulkUpdate)
-	defer sp.Finish()
-
 	if len(selectors) == 0 || len(documents) == 0 {
-		sp.SetTag(TraceTagInfo, traceMsgEmptyElements)
+
 		result = &emptyBulkResult
 		return
 	}
@@ -798,14 +712,10 @@ func (p *Pool) BulkUpdateInterfaces(ctx goctx.Context, dbName, collection string
 
 	col := getMongoCollection(p.client, dbName, collection)
 	bulkWriteOpt := options.BulkWrite().SetOrdered(false)
-	res, errDB := col.BulkWrite(ctx, writeModels, bulkWriteOpt)
+	res, errDB := col.BulkWrite(ctx.NativeContext(), writeModels, bulkWriteOpt)
 	result = MergeBulkResult(res, errDB)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	sp.SetTag(TraceTagCriteria, collection)
 	accessLog(ctx, p.LiveServers(), FuncBulkUpdate, collection, start)
 	return
 }
@@ -814,11 +724,8 @@ func (p *Pool) BulkDelete(ctx goctx.Context, dbName, collection string, selector
 	start := time.Now()
 	defer updateMetrics(operationLabelPoolBulkDelete, start, &err)
 
-	sp := createMongoSpan(ctx, FuncBulkDelete)
-	defer sp.Finish()
-
 	if len(selector) == 0 {
-		sp.SetTag(TraceTagInfo, traceMsgEmptyElements)
+
 		result = &emptyBulkResult
 		return
 	}
@@ -835,14 +742,10 @@ func (p *Pool) BulkDelete(ctx goctx.Context, dbName, collection string, selector
 
 	col := getMongoCollection(p.client, dbName, collection)
 	bulkWriteOpt := options.BulkWrite().SetOrdered(false)
-	res, errDB := col.BulkWrite(ctx, writeModels, bulkWriteOpt)
+	res, errDB := col.BulkWrite(ctx.NativeContext(), writeModels, bulkWriteOpt)
 	result = MergeBulkResult(res, errDB)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	sp.SetTag(TraceTagCriteria, collection)
 	accessLog(ctx, p.LiveServers(), FuncBulkDelete, collection, start)
 	return
 }
@@ -855,9 +758,6 @@ func (p *Pool) QueryCountWithOptions(ctx goctx.Context, dbName, collection strin
 	start := time.Now()
 	defer updateMetrics(operationLabelQueryCountWithOptions, start, &err)
 
-	sp := createMongoSpan(ctx, FuncQueryCount)
-	defer sp.Finish()
-
 	opt := options.Count()
 	if skip > 0 {
 		opt.SetSkip(int64(skip))
@@ -867,15 +767,13 @@ func (p *Pool) QueryCountWithOptions(ctx goctx.Context, dbName, collection strin
 	}
 
 	col := getMongoCollection(p.client, dbName, collection)
-	_n, errDB := col.CountDocuments(ctx, selector, opt)
+	_n, errDB := col.CountDocuments(ctx.NativeContext(), selector, opt)
 	n = int(_n)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Query:%+v", collection, selector)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Query: " + formatMsg(selector, level)
+
 	accessLog(ctx, p.LiveServers(), FuncQueryCount, logMsg, start)
 	return
 }
@@ -887,9 +785,6 @@ func (p *Pool) QueryAll(ctx goctx.Context, dbName, collection string, result, se
 func (p *Pool) QueryAllWithCollation(ctx goctx.Context, dbName, collection string, result, selector, fields interface{}, collation *options.Collation, skip, limit int, sort ...string) (err gopkg.CodeError) {
 	start := time.Now()
 	defer updateMetrics(operationLabelQueryAllWithOptions, start, &err)
-
-	sp := createMongoSpan(ctx, FuncQueryAll)
-	defer sp.Finish()
 
 	findOpt := options.Find()
 	findOpt.SetSkip(int64(skip))
@@ -910,29 +805,22 @@ func (p *Pool) QueryAllWithCollation(ctx goctx.Context, dbName, collection strin
 	}
 
 	col := getMongoCollection(p.client, dbName, collection)
-	cursor, errDB := col.Find(ctx, selector, findOpt)
+	cursor, errDB := col.Find(ctx.NativeContext(), selector, findOpt)
 	defer func() {
-		logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Projection::%+v,Sort:%+v,Skip:%d,Limit:%d",
-			collection,
-			selector,
-			fields,
-			sort,
-			skip,
-			limit,
-		)
-		sp.SetTag(TraceTagCriteria, logMsg)
+		level := getAccessLevel()
+		logMsg := "Collection: " + formatMsg(collection, level) + " ,Query: " + formatMsg(selector, level) +
+			" ,Projection: " + formatMsg(fields, level) + " ,Sort: " + formatMsg(sort, level) +
+			" ,Skip: " + formatMsg(skip, level) + " ,Limit: " + formatMsg(limit, level)
+
 		accessLog(ctx, p.LiveServers(), FuncQueryAll, logMsg, start)
 	}()
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
 		return
 	}
-	errDB = cursor.All(ctx, result)
+
+	errDB = cursor.All(ctx.NativeContext(), result)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
 	return
 }
@@ -940,9 +828,6 @@ func (p *Pool) QueryAllWithCollation(ctx goctx.Context, dbName, collection strin
 func (p *Pool) QueryOne(ctx goctx.Context, dbName, collection string, result, selector, fields interface{}, skip int, sort ...string) (err gopkg.CodeError) {
 	start := time.Now()
 	defer updateMetrics(operationLabelQueryOne, start, &err)
-
-	sp := createMongoSpan(ctx, FuncQueryOne)
-	defer sp.Finish()
 
 	findOpt := options.FindOne()
 	findOpt.SetSkip(int64(skip))
@@ -952,14 +837,13 @@ func (p *Pool) QueryOne(ctx goctx.Context, dbName, collection string, result, se
 	}
 
 	col := getMongoCollection(p.client, dbName, collection)
-	errDB := col.FindOne(ctx, selector, findOpt).Decode(result)
+	errDB := col.FindOne(ctx.NativeContext(), selector, findOpt).Decode(result)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Filter:%+v,Projection::%+v,Sort:%+v,Skip:%d", collection, selector, fields, sort, skip)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Filter: " + formatMsg(selector, level) +
+		" ,Projection: " + formatMsg(fields, level) + " ,Sort: " + formatMsg(sort, level) + " ,Skip: " + formatMsg(skip, level)
+
 	accessLog(ctx, p.LiveServers(), FuncQueryOne, logMsg, start)
 	return
 }
@@ -969,9 +853,6 @@ func (p *Pool) FindAndModify(ctx goctx.Context, dbName, collection string, resul
 	upsert, returnNew bool, sort ...string) (err gopkg.CodeError) {
 	start := time.Now()
 	defer updateMetrics(operationLabelFindAndModify, start, &err)
-
-	sp := createMongoSpan(ctx, FuncFindAndModify)
-	defer sp.Finish()
 
 	if result == nil {
 		result = bson.M{}
@@ -985,29 +866,34 @@ func (p *Pool) FindAndModify(ctx goctx.Context, dbName, collection string, resul
 		if returnNew {
 			foamOpt.SetReturnDocument(options.After)
 		}
+		if len(sort) > 0 {
+			foamOpt.SetSort(ParseSortField(sort...))
+		}
 		foamOpt.SetUpsert(upsert)
 		foamOpt.SetProjection(fields)
-		errDB = col.FindOneAndUpdate(ctx, selector, setOp, foamOpt).Decode(result)
+		errDB = col.FindOneAndUpdate(ctx.NativeContext(), selector, setOp, foamOpt).Decode(result)
 	} else {
 		foamOpt := options.FindOneAndReplace()
 		if returnNew {
 			foamOpt.SetReturnDocument(options.After)
 		}
+		if len(sort) > 0 {
+			foamOpt.SetSort(ParseSortField(sort...))
+		}
 		foamOpt.SetUpsert(upsert)
 		foamOpt.SetProjection(fields)
-		errDB = col.FindOneAndReplace(ctx, selector, update, foamOpt).Decode(result)
+		errDB = col.FindOneAndReplace(ctx.NativeContext(), selector, update, foamOpt).Decode(result)
 	}
 
 	err = p.resultHandling(errDB, ctx)
 	if upsert && !returnNew && err != nil && err.ErrorCode() == NotFound { // align to mgo behavior
 		err = nil
 	}
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Projection::%+v,Sort:%+v", collection, selector, fields, sort)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Query: " + formatMsg(selector, level) +
+		" ,Projection: " + formatMsg(fields, level) + " ,Sort: " + formatMsg(sort, level)
+
 	accessLog(ctx, p.LiveServers(), FuncFindAndModify, logMsg, start)
 	return
 }
@@ -1016,9 +902,6 @@ func (p *Pool) FindAndReplace(ctx goctx.Context, dbName, collection string, resu
 	upsert, returnNew bool, sort ...string) (err gopkg.CodeError) {
 	start := time.Now()
 	defer updateMetrics(operationLabelFindAndReplace, start, &err)
-
-	sp := createMongoSpan(ctx, FuncFindAndReplace)
-	defer sp.Finish()
 
 	foarOpt := options.FindOneAndReplace()
 	if returnNew {
@@ -1032,14 +915,13 @@ func (p *Pool) FindAndReplace(ctx goctx.Context, dbName, collection string, resu
 	}
 
 	col := getMongoCollection(p.client, dbName, collection)
-	errDB := col.FindOneAndReplace(ctx, selector, replacement, foarOpt).Decode(result)
+	errDB := col.FindOneAndReplace(ctx.NativeContext(), selector, replacement, foarOpt).Decode(result)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Projection::%+v,Sort:%+v", collection, selector, fields, sort)
-	sp.SetTag(TraceTagCriteria, logMsg)
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Query: " + formatMsg(selector, level) +
+		" ,Projection: " + formatMsg(fields, level) + " ,Sort: " + formatMsg(sort, level)
+
 	accessLog(ctx, p.LiveServers(), FuncFindAndReplace, logMsg, start)
 	return
 }
@@ -1048,9 +930,6 @@ func (p *Pool) FindAndRemove(ctx goctx.Context, dbName, collection string, resul
 	sort ...string) (err gopkg.CodeError) {
 	start := time.Now()
 	defer updateMetrics(operationLabelFindAndRemove, start, &err)
-
-	sp := createMongoSpan(ctx, FuncFindAndRemove)
-	defer sp.Finish()
 
 	foarOpt := options.FindOneAndDelete()
 	foarOpt.SetProjection(fields)
@@ -1063,15 +942,57 @@ func (p *Pool) FindAndRemove(ctx goctx.Context, dbName, collection string, resul
 	}
 
 	col := getMongoCollection(p.client, dbName, collection)
-	errDB := col.FindOneAndDelete(ctx, selector, foarOpt).Decode(result)
+	errDB := col.FindOneAndDelete(ctx.NativeContext(), selector, foarOpt).Decode(result)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
+
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Query: " + formatMsg(selector, level) +
+		" ,Projection: " + formatMsg(fields, level) + " ,Sort: " + formatMsg(sort, level)
+
+	accessLog(ctx, p.LiveServers(), FuncFindAndRemove, logMsg, start)
+	return
+}
+
+func (p *Pool) FindAndModifyWithArrayFilters(ctx goctx.Context, dbName, collection string, result, selector, update, fields interface{},
+	upsert, returnNew bool, arrayFilters interface{}, sort ...string) (err gopkg.CodeError) {
+	start := time.Now()
+	defer updateMetrics(operationLabelFindAndModify, start, &err)
+
+	if result == nil {
+		result = bson.M{}
 	}
 
-	logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Projection::%+v,Sort:%+v", collection, selector, fields, sort)
-	sp.SetTag(TraceTagCriteria, logMsg)
-	accessLog(ctx, p.LiveServers(), FuncFindAndRemove, logMsg, start)
+	if reflect.TypeOf(arrayFilters).Kind() != reflect.Slice {
+		return gopkg.NewCarrierCodeError(QueryInputArray, "query format error: arrayFilters is expected to be an array")
+	}
+	v := reflect.ValueOf(arrayFilters)
+	filters := make([]interface{}, v.Len())
+	for i := 0; i < v.Len(); i++ {
+		filters[i] = v.Index(i).Interface()
+	}
+
+	col := getMongoCollection(p.client, dbName, collection)
+	setOp, _ := EnsureUpdateOp(update)
+	var errDB error
+	foamOpt := options.FindOneAndUpdate()
+	if returnNew {
+		foamOpt.SetReturnDocument(options.After)
+	}
+	foamOpt.SetArrayFilters(options.ArrayFilters{Filters: filters})
+	foamOpt.SetUpsert(upsert)
+	foamOpt.SetProjection(fields)
+	errDB = col.FindOneAndUpdate(ctx.NativeContext(), selector, setOp, foamOpt).Decode(result)
+
+	err = p.resultHandling(errDB, ctx)
+	if upsert && !returnNew && err != nil && err.ErrorCode() == NotFound { // align to mgo behavior
+		err = nil
+	}
+
+	level := getAccessLevel()
+	logMsg := "Collection: " + formatMsg(collection, level) + " ,Query: " + formatMsg(selector, level) +
+		" ,Projection: " + formatMsg(fields, level) + " ,Sort: " + formatMsg(sort, level)
+
+	accessLog(ctx, p.LiveServers(), FuncFindAndModify, logMsg, start)
 	return
 }
 
@@ -1079,18 +1000,14 @@ func (p *Pool) Indexes(ctx goctx.Context, dbName, collection string) (result []m
 	start := time.Now()
 	defer updateMetrics(operationLabelIndexes, start, &err)
 
-	sp := createMongoSpan(ctx, FuncIndexes)
-	defer sp.Finish()
-
-	sp.SetTag(TraceTagCriteria, collection)
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
-	cursor, errDB := indexView.List(ctx)
+	cursor, errDB := indexView.List(ctx.NativeContext())
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
 		return
 	}
 	result = []map[string]interface{}{}
-	errDB = cursor.All(ctx, &result)
+	errDB = cursor.All(ctx.NativeContext(), &result)
 	err = p.resultHandling(errDB, ctx)
 	return
 }
@@ -1098,9 +1015,6 @@ func (p *Pool) Indexes(ctx goctx.Context, dbName, collection string) (result []m
 func (p *Pool) CreateIndex(ctx goctx.Context, dbName, collection string, key []string, sparse, unique bool, name string) (err gopkg.CodeError) {
 	start := time.Now()
 	defer updateMetrics(operationLabelCreateIndex, start, &err)
-
-	sp := createMongoSpan(ctx, FuncCreateIndex)
-	defer sp.Finish()
 
 	indexOpt := options.Index()
 	indexOpt.SetBackground(true)
@@ -1116,13 +1030,16 @@ func (p *Pool) CreateIndex(ctx goctx.Context, dbName, collection string, key []s
 	}
 
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
-	name, errDB := indexView.CreateOne(ctx, index)
+	name, errDB := indexView.CreateOne(ctx.NativeContext(), index)
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-		errLog(ctx, p.LiveServers(), fmt.Sprintf("%s add index:%s name:%s err:%s", collection, strings.Join(key, ","), name, err.Error()))
+		level := logrus.ErrorLevel
+		logMsg := formatMsg(collection, level) + " add index: " + formatMsg(strings.Join(key, ","), level) +
+			" ,name: " + formatMsg(name, level) + " ,err: " + formatMsg(err.Error(), level)
+
+		errLog(ctx, p.LiveServers(), logMsg)
 	}
-	sp.SetTag(TraceTagCriteria, fmt.Sprintf("Collection:%s,Create Index:%+v", collection, index))
+
 	return
 }
 
@@ -1130,11 +1047,7 @@ func (p *Pool) CreateTTLIndex(ctx goctx.Context, dbName, collection string, key 
 	start := time.Now()
 	defer updateMetrics(operationLabelCreateTTLIndex, start, &err)
 
-	sp := createMongoSpan(ctx, FuncCreateIndex)
-	defer sp.Finish()
-
 	indexOpt := options.Index()
-	indexOpt.SetBackground(true)
 	indexOpt.SetExpireAfterSeconds(int32(ttlSec))
 
 	keys, _ := ParseIndexKey([]string{key})
@@ -1144,13 +1057,16 @@ func (p *Pool) CreateTTLIndex(ctx goctx.Context, dbName, collection string, key 
 	}
 
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
-	name, errDB := indexView.CreateOne(ctx, index)
+	name, errDB := indexView.CreateOne(ctx.NativeContext(), index)
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-		errLog(ctx, p.LiveServers(), fmt.Sprintf("%s add ttl index:%s name:%s err:%s", collection, key, name, err.Error()))
+		level := logrus.ErrorLevel
+		logMsg := formatMsg(collection, level) + " add ttl index: " + formatMsg(key, level) +
+			" ,name: " + formatMsg(name, level) + " ,err: " + formatMsg(err.Error(), level)
+
+		errLog(ctx, p.LiveServers(), logMsg)
 	}
-	sp.SetTag(TraceTagCriteria, fmt.Sprintf("Collection:%s,Create Index:%+v", collection, index))
+
 	return
 }
 
@@ -1158,18 +1074,17 @@ func (p *Pool) EnsureIndex(ctx goctx.Context, dbName, collection string, index m
 	start := time.Now()
 	defer updateMetrics(operationLabelEnsureIndex, start, &err)
 
-	sp := createMongoSpan(ctx, FuncEnsureIndex)
-	defer sp.Finish()
-
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
-	name, errDB := indexView.CreateOne(ctx, index)
+	name, errDB := indexView.CreateOne(ctx.NativeContext(), index)
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-		errLog(ctx, p.LiveServers(), fmt.Sprintf("%s add index:%+v name:%s err:%s", collection, index.Keys, name, err.Error()))
+		level := logrus.ErrorLevel
+		logMsg := formatMsg(collection, level) + " add index: " + formatMsg(index.Keys, level) +
+			" ,name: " + formatMsg(name, level) + " ,err: " + formatMsg(err.Error(), level)
+
+		errLog(ctx, p.LiveServers(), logMsg)
 	}
 
-	sp.SetTag(TraceTagCriteria, fmt.Sprintf("Collection:%s,EnsureIndex:%+v", collection, index))
 	return
 }
 
@@ -1251,18 +1166,12 @@ func (p *Pool) DropIndex(ctx goctx.Context, dbName, collection string, key []str
 	start := time.Now()
 	defer updateMetrics(operationLabelDropIndex, start, &err)
 
-	sp := createMongoSpan(ctx, FuncDropIndex)
-	defer sp.Finish()
-
 	// get default index name
 	_, indexName := ParseIndexKey(key)
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
-	_, errDB := indexView.DropOne(ctx, indexName)
+	_, errDB := indexView.DropOne(ctx.NativeContext(), indexName)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	sp.SetTag(TraceTagCriteria, fmt.Sprintf("Collection:%s,DropIndex Key:%+v", collection, key))
+
 	return
 }
 
@@ -1270,16 +1179,10 @@ func (p *Pool) DropIndexName(ctx goctx.Context, dbName, collection, name string)
 	start := time.Now()
 	defer updateMetrics(operationLabelDropIndexName, start, &err)
 
-	sp := createMongoSpan(ctx, FuncDropIndexName)
-	defer sp.Finish()
-
 	indexView := getMongoCollection(p.client, dbName, collection).Indexes()
-	_, errDB := indexView.DropOne(ctx, name)
+	_, errDB := indexView.DropOne(ctx.NativeContext(), name)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	sp.SetTag(TraceTagCriteria, fmt.Sprintf("Collection:%s,DropIndexName:%s", collection, name))
+
 	return
 }
 
@@ -1287,15 +1190,9 @@ func (p *Pool) CreateCollection(ctx goctx.Context, dbName, collection string, op
 	start := time.Now()
 	defer updateMetrics(operationLabelCreateCollection, start, &err)
 
-	sp := createMongoSpan(ctx, FuncCreateCollection)
-	defer sp.Finish()
-
-	errDB := p.client.Database(dbName, databaseOptions).CreateCollection(ctx, collection, opt)
+	errDB := p.client.Database(dbName, databaseOptions).CreateCollection(ctx.NativeContext(), collection, opt)
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	sp.SetTag(TraceTagCriteria, collection)
+
 	accessLog(ctx, p.LiveServers(), FuncCreateCollection, collection, start)
 	return
 }
@@ -1304,15 +1201,9 @@ func (p *Pool) DropCollection(ctx goctx.Context, dbName, collection string) (err
 	start := time.Now()
 	defer updateMetrics(operationLabelDropCollection, start, &err)
 
-	sp := createMongoSpan(ctx, FuncDropCollection)
-	defer sp.Finish()
-
-	errDB := getMongoCollection(p.client, dbName, collection).Drop(ctx)
+	errDB := getMongoCollection(p.client, dbName, collection).Drop(ctx.NativeContext())
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	sp.SetTag(TraceTagCriteria, collection)
+
 	accessLog(ctx, p.LiveServers(), FuncDropCollection, collection, start)
 	return
 }
@@ -1321,20 +1212,16 @@ func (p *Pool) RenameCollection(ctx goctx.Context, dbName, oldName, newName stri
 	start := time.Now()
 	defer updateMetrics(operationLabelRenameCollection, start, &err)
 
-	sp := createMongoSpan(ctx, FuncRenameCollection)
-	defer sp.Finish()
-
 	from := fmt.Sprintf("%s.%s", dbName, oldName)
 	to := fmt.Sprintf("%s.%s", dbName, newName)
 
 	cmd := bson.D{{"renameCollection", from}, {"to", to}}
-	errDB := p.client.Database("admin", databaseOptions).RunCommand(ctx, cmd).Err()
+	errDB := p.client.Database("admin", databaseOptions).RunCommand(ctx.NativeContext(), cmd).Err()
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	logMsg := fmt.Sprintf("Rename Collection from:%s to:%s", from, to)
-	sp.SetTag(TraceTagCriteria, logMsg)
+
+	level := getAccessLevel()
+	logMsg := "Rename Collection from " + formatMsg(from, level) + " to " + formatMsg(to, level)
+
 	accessLog(ctx, p.LiveServers(), FuncRenameCollection, logMsg, start)
 	return
 }
@@ -1343,13 +1230,10 @@ func (p *Pool) Pipe(ctx goctx.Context, dbName, collection string, pipeline, resu
 	start := time.Now()
 	defer updateMetrics(operationLabelPipe, start, &err)
 
-	sp := createMongoSpan(ctx, FuncPipe)
-	defer sp.Finish()
-
 	var queryAll bool
 	resultsVal := reflect.ValueOf(result)
 	if resultsVal.Kind() != reflect.Ptr {
-		return gopkg.NewCodeError(NotPtrInput, fmt.Sprintf("results argument must be a pointer type"))
+		return gopkg.NewCodeError(NotPtrInput, "results argument must be a pointer type")
 	}
 
 	sliceVal := resultsVal.Elem()
@@ -1361,24 +1245,21 @@ func (p *Pool) Pipe(ctx goctx.Context, dbName, collection string, pipeline, resu
 		queryAll = true
 	}
 
-	cursor, errDB := getMongoCollection(p.client, dbName, collection).Aggregate(ctx, pipeline)
+	cursor, errDB := getMongoCollection(p.client, dbName, collection).Aggregate(ctx.NativeContext(), pipeline)
 	defer func() {
-		logMsg := fmt.Sprintf("Collection:%s,Pipeline:%+v",
-			collection,
-			pipeline,
-		)
-		sp.SetTag(TraceTagCriteria, logMsg)
+		level := getAccessLevel()
+		logMsg := "Collection: " + formatMsg(collection, level) + " ,Pipeline: " + formatMsg(pipeline, level)
 		accessLog(ctx, p.LiveServers(), FuncPipe, logMsg, start)
 	}()
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
 		return
 	}
+
 	if queryAll {
-		errDB = cursor.All(ctx, result)
+		errDB = cursor.All(ctx.NativeContext(), result)
 	} else {
-		if cursor.Next(ctx) {
+		if cursor.Next(ctx.NativeContext()) {
 			errDB = cursor.Decode(result)
 		} else {
 			errDB = errors.New(MongoMsgDocumentsNotFound)
@@ -1386,9 +1267,6 @@ func (p *Pool) Pipe(ctx goctx.Context, dbName, collection string, pipeline, resu
 	}
 
 	err = p.resultHandling(errDB, ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
 	return
 }
 
@@ -1429,7 +1307,7 @@ type Cursor struct {
 }
 
 func (p *Pool) GetCursor(ctx goctx.Context, dbName, collection string, selector interface{}, option ...*options.FindOptions) (cursor MongoCursor, err gopkg.CodeError) {
-	c, errDB := getMongoCollection(p.client, dbName, collection).Find(ctx, selector, option...)
+	c, errDB := getMongoCollection(p.client, dbName, collection).Find(ctx.NativeContext(), selector, option...)
 	err = p.resultHandling(errDB, ctx)
 	if err != nil {
 		return
@@ -1463,19 +1341,9 @@ func (c *Cursor) Close(ctx context.Context) (err gopkg.CodeError) {
 }
 
 func (c *Cursor) All(ctx context.Context, result interface{}) (err gopkg.CodeError) {
-	sp := createMongoSpan(c.ctx, FuncCursorAll)
-	defer sp.Finish()
+
 	errDB := c.cursor.All(ctx, result)
 	err = c.pool.resultHandling(errDB, c.ctx)
-	if err != nil {
-		sp.SetTag(TraceTagError, err.FullError())
-	}
-	logMsg := fmt.Sprintf("Collection:%s,Query:%+v,Options:%+v",
-		c.collection,
-		c.selector,
-		c.opt,
-	)
-	sp.SetTag(TraceTagCriteria, logMsg)
 	return err
 }
 

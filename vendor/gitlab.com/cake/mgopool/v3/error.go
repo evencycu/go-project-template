@@ -3,8 +3,8 @@ package mgopool
 import (
 	"net/http"
 
+	"gitlab.com/cake/golibs/intercom"
 	"gitlab.com/cake/gopkg"
-	"gitlab.com/cake/intercom"
 )
 
 var (

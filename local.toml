@@ -1,65 +1,65 @@
 [app]
-  namespace = "dev-hk-03"
-  prof = false
+namespace = "dev-hk-03"
+prof = false
 
 [http]
-  port = "8999"
-  read_timeout = "40s"
-  write_timeout = "40s"
-  api_timeout = "15s"
-  mode = "debug"
+api_timeout = "15s"
+mode = "debug"
+port = "8082"
+read_timeout = "40s"
+write_timeout = "40s"
 
 [log]
-  # Discard means not write log to local file
-  # output = "Discard"
-  output = "Stdout"
-  # output = "test.log"
-  level = "debug"
-  timestamp_format = ""
-  access_level = "trace"
+# Discard means not write log to local file
+# output = "Discard"
+output = "Stdout"
+# output = "test.log"
+access_level = "trace"
+level = "debug"
+timestamp_format = ""
 
 [jaeger]
-  enabled = true
-  host = "127.0.0.1:6831"
-  sample_rate = 1
-  queue_size = 128
-  flush_interval = "10s"
-  log_spans = false
+enabled = true
+flush_interval = "10s"
+host = "127.0.0.1:6831"
+log_spans = false
+queue_size = 128
+sample_rate = 1
 
 [kafka]
-  bootstrap_servers = "dev-hk-db62.cloud.maaii.local:9092,dev-hk-db63.cloud.maaii.local:9092,dev-hk-db64.cloud.maaii.local:9092"
-  security_protocol = "sasl_ssl"
-  ssl_ca_location = "devkafkaca.crt"
-  sasl_mechanism = "PLAIN"
-  sasl_username = "lcc5"
-  sasl_password = "kafka-lcc5"
-  # producer
-  go_batch_producer = false
-  events_channel_size = 1048576
-  produce_channel_size = 1048576
-  enable_idempotence = true
-  acks = -1
+bootstrap_servers = "dev-hk-db62.cloud.maaii.local:9092,dev-hk-db63.cloud.maaii.local:9092,dev-hk-db64.cloud.maaii.local:9092"
+sasl_mechanism = "PLAIN"
+sasl_password = "kafka-lcc5"
+sasl_username = "lcc5"
+security_protocol = "sasl_ssl"
+ssl_ca_location = "devkafkaca.crt"
+# producer
+acks = -1
+enable_idempotence = true
+events_channel_size = 1048576
+go_batch_producer = false
+produce_channel_size = 1048576
 
 [database]
 [database.mgo]
-  name = "local"
-  user = "lcc5"
-  password = "@lcc5"
-  authdatabase = "admin"
-  max_conn = 4
-  max_idle = 15
-  timeout = "30s"
-  direct = false
-  secondary = false
-  mongos = false
-  hosts = "172.30.3.146:27017;172.30.3.36:27017;172.30.3.161:27017"
+authdatabase = "admin"
+direct = false
+hosts = "localhost:27017"
+max_conn = 4
+max_idle = 15
+mongos = false
+name = "admin"
+password = "secret"
+secondary = false
+timeout = "30s"
+user = "admin"
 
 [database.redis]
-  host = "172.30.3.146:26379;172.30.3.36:26379;172.30.3.161:26379"
-  master = "lcc5-hk-dev-master"
-  connect_timeout = "5s"
-  max_idle = 3
-  max_active = 20
-  idle_timeout = "180s"
-  password = "fXC7tLD57bGRYDVM"
-  sentinel_password = "nm2ZWZrLQ9F8Sw2N"
+connect_timeout = "5s"
+host = "172.30.3.146:26379;172.30.3.36:26379;172.30.3.161:26379"
+idle_timeout = "180s"
+master = "lcc5-hk-dev-master"
+max_active = 20
+max_idle = 3
+password = "fXC7tLD57bGRYDVM"
+sentinel_password = "nm2ZWZrLQ9F8Sw2N"

@@ -11,9 +11,9 @@ const (
 	ContextKey = "X-Ctx"
 
 	// for trace
-	HTTPHeaderTrace         = "uber-trace-id"
-	HTTPHeaderJaegerDebug   = "jaeger-debug-id"
-	HTTPHeaderJaegerBaggage = "jaeger-baggage"
+	HTTPHeaderTrace       = "traceparent"
+	HTTPHeaderJaegerDebug = "jaeger-debug-id"
+	HTTPHeaderBaggage     = "baggage"
 
 	// for http passing
 	HTTPHeaderCID            = "x-correlation-id"
@@ -28,6 +28,7 @@ const (
 	HTTPHeaderUserHome       = "x-m800-usr-home"
 	HTTPHeaderServiceHome    = "x-m800-svc-home"
 	HTTPHeaderServiceType    = "x-m800-svc-type"
+	HTTPHeaderServiceRole    = "x-m800-svc-role"
 	HTTPHeaderUserRole       = "x-m800-usr-role"
 	HTTPHeaderUserGroup      = "x-m800-usr-group"
 	HTTPHeaderUserAnms       = "x-m800-usr-anms"
@@ -38,11 +39,16 @@ const (
 	HTTPHeaderBotType        = "x-m800-bot-type"
 	HTTPHeaderFromNs         = "x-m800-from-ns"
 	HTTPHeaderInternalCaller = "x-m800-internal-caller"
+	HTTPHeaderSession        = "x-m800-session"
+	HTTPHeaderGroupGuest     = "x-m800-grp-guest"
+	HTTPHeaderGroupRole      = "x-m800-grp-role"
+	HTTPHeaderUserId         = "x-m800-usr-id"
+	HTTPHeaderOmni           = "x-m800-omni" // for aws lambda missing word bug , input x-m800-internal-caller and output this to file-management download api
 
 	// for logger
-	LogKeyTrace         = "uti"
-	LogKeyJaegerDebug   = "jdi"
-	LogKeyJaegerBaggage = "jb"
+	LogKeyTraceID     = "traceID"
+	LogKeyJaegerDebug = "jdi"
+	LogKeyBaggage     = "jb"
 
 	// FROM m800 log format document: https://issuetracking.maaii.com:9443/pages/viewpage.action?pageId=65128541#Loggingformatdesign(v1.0)-Backendteam(BE)
 
@@ -139,9 +145,9 @@ var (
 func init() {
 	// role special handle
 	sKMap = map[string]string{
-		LogKeyTrace:          HTTPHeaderTrace,
+		LogKeyTraceID:        HTTPHeaderTrace,
 		LogKeyJaegerDebug:    HTTPHeaderJaegerDebug,
-		LogKeyJaegerBaggage:  HTTPHeaderJaegerBaggage,
+		LogKeyBaggage:        HTTPHeaderBaggage,
 		LogKeyCID:            HTTPHeaderCID,
 		LogKeyEID:            HTTPHeaderEID,
 		LogKeyService:        HTTPHeaderService,
@@ -166,9 +172,9 @@ func init() {
 	}
 
 	hKMap = map[string]string{
-		HTTPHeaderTrace:          LogKeyTrace,
+		HTTPHeaderTrace:          LogKeyTraceID,
 		HTTPHeaderJaegerDebug:    LogKeyJaegerDebug,
-		HTTPHeaderJaegerBaggage:  LogKeyJaegerBaggage,
+		HTTPHeaderBaggage:        LogKeyBaggage,
 		HTTPHeaderCID:            LogKeyCID,
 		HTTPHeaderEID:            LogKeyEID,
 		HTTPHeaderService:        LogKeyService,
@@ -297,6 +303,9 @@ func GetContextFromHeader(g http.Header) Context {
 
 // CopyContext copy context value and span
 func CopyContext(ctx Context) Context {
+	if ctx == nil {
+		return Background()
+	}
 	newCtx := Background()
 	for k, v := range ctx.Map() {
 		newCtx.Set(k, v)

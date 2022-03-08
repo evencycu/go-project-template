@@ -5,7 +5,6 @@ import (
 )
 
 func TestServercmd(t *testing.T) {
-	initTracer()
 	ActivateProfile()
 }
 

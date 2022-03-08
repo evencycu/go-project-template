@@ -238,7 +238,7 @@ func (b *Bulk) Run() (res *BulkResult, err gopkg.CodeError) {
 		return
 	}
 	col := getMongoCollection(b.pool.client, b.dbName, b.collection)
-	result, errDB := col.BulkWrite(b.ctx, b.models, b.options)
+	result, errDB := col.BulkWrite(b.ctx.NativeContext(), b.models, b.options)
 	b.models = []mongo.WriteModel{}
 	res = MergeBulkResult(result, errDB)
 	err = b.pool.resultHandling(errDB, b.ctx)

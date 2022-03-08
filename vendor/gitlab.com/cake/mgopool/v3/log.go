@@ -1,6 +1,8 @@
 package mgopool
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -51,4 +53,17 @@ func infoLog(ctx goctx.Context, host []string, msg string) {
 		WithField(DB_HOST_FIELD, host).
 		WithField(DB_TYPE_FIELD, DB_TYPE).
 		Info(msg)
+}
+
+func getAccessLevel() logrus.Level {
+	return m800log.GetAccessLevel()
+}
+
+func formatMsg(msg interface{}, level logrus.Level) string {
+	stdLogger := m800log.GetLogger()
+	if stdLogger.Level >= level {
+		value, _ := json.Marshal(msg)
+		return string(value)
+	}
+	return fmt.Sprintf("%+v", msg)
 }

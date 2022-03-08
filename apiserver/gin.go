@@ -7,15 +7,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	ginprometheus "gitlab.com/cake/gin-prometheus"
 	"gitlab.com/cake/go-project-template/gpt"
 	"gitlab.com/cake/goctx"
+	"gitlab.com/cake/golibs/intercom"
+	"gitlab.com/cake/golibs/metric"
 	"gitlab.com/cake/gopkg"
-	"gitlab.com/cake/intercom"
 	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool/v3"
+
+	m800trace "gitlab.com/cake/golibs/trace"
+
 	// new_err "gitlab.com/cake/go-project-template/examples/err"
 	// "gitlab.com/cake/go-project-template/examples/metric_api"
+	"gitlab.com/cake/go-project-template/examples/trace"
 )
 
 var (
@@ -53,10 +57,10 @@ func GinRouter() (*gin.Engine, error) {
 	router := gin.New()
 	router.Use(intercom.M800Recovery(gpt.CodeInternalServerError))
 
-	// Add gin prometheus metrics
-	p, err := ginprometheus.NewPrometheus(metricSystem,
-		ginprometheus.HistogramMetrics(metricSystem, ginprometheus.DefaultDurationBucket, ginprometheus.DefaultSizeBucket),
-		ginprometheus.HistogramHandleFunc())
+	router.Use(m800trace.Middleware(gopkg.GetAppName()))
+	p, err := metric.NewPrometheus(metricSystem,
+		metric.HistogramMetrics(metricSystem, metric.DefaultDurationBucket, metric.DefaultSizeBucket),
+		metric.HistogramHandleFunc())
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +80,7 @@ func GinRouter() (*gin.Engine, error) {
 	// Add application API
 	// new_err.AddErrorEndpoint(rootGroup)
 	// metric_api.AddMetricEndpoint(rootGroup)
+	trace.AddMetricEndpoint(rootGroup)
 
 	// for testing purpose
 	rootGroup.Any("/echo/*any", echo)
