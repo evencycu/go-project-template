@@ -3,10 +3,10 @@ package apiserver
 import (
 	"log"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-
 	ginprometheus "gitlab.com/cake/gin-prometheus"
 	"gitlab.com/cake/go-project-template/gpt"
 	"gitlab.com/cake/goctx"
@@ -77,6 +77,9 @@ func GinRouter() (*gin.Engine, error) {
 	// new_err.AddErrorEndpoint(rootGroup)
 	// metric_api.AddMetricEndpoint(rootGroup)
 
+	// for testing purpose
+	rootGroup.Any("/echo/*any", echo)
+
 	return router, nil
 }
 
@@ -130,4 +133,10 @@ func mongo(c *gin.Context) {
 
 func version(c *gin.Context) {
 	c.JSON(http.StatusOK, gopkg.GetVersion())
+}
+
+func echo(c *gin.Context) {
+	requestDump, _ := httputil.DumpRequest(c.Request, true)
+	log.Println(string(requestDump))
+	c.JSON(http.StatusOK, string(requestDump))
 }
