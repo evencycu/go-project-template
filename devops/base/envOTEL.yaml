@@ -8,5 +8,8 @@ spec:
       containers:
         - name: go-project-template
           env:
-            - name: OTEL_EXPORTER_JAEGER_ENDPOINT
-              value: "jaeger-collector:14268"
+            # Reference: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/sdk-environment-variables.md
+            - name: OTEL_EXPORTER_JAEGER_PROTOCOL
+              value: "udp/thrift.binary"
+            - name: OTEL_TRACES_SAMPLER_ARG # Sample rate
+              value: "1"

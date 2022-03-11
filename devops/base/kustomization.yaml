@@ -13,3 +13,4 @@ patchesStrategicMerge:
   - envLog.yaml
   - envMongo.yaml
   - envOTEL.yaml
+  - jaegerSidecar.yaml

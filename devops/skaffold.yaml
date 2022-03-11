@@ -4,7 +4,7 @@ build:
   tagPolicy:
     sha256: {}
   artifacts:
-  - image: artifactory.maaii.com/lc-docker-local/go-project-template-SKAFFOLD_SUFFIX
+  - image: artifactory.maaii.com/lc-docker-local/go-project-template-george
     docker:
       buildArgs:
         APPNAME: go-project-template
@@ -13,7 +13,7 @@ build:
       - --platform=linux/amd64
   local:
     useDockerCLI: true
-    
+
 deploy:
   kustomize: 
     paths: 

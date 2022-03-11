@@ -47,7 +47,7 @@ func NewServerCmd() *cobra.Command {
 			}
 			m800log.Infof(systemCtx, "[go-project-template] init config: %+v", viper.AllSettings())
 
-			tp, err := m800trace.InitTracer(gopkg.GetAppName(), gpt.GetNamespace(), 1)
+			tp, err := m800trace.InitTracer(gopkg.GetAppName(), gpt.GetNamespace(), viper.GetFloat64("otel.traces.sampler_arg"))
 			if err != nil {
 				panic(err)
 			}

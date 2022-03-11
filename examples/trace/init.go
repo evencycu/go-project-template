@@ -5,8 +5,10 @@ import (
 	"github.com/spf13/viper"
 	"gitlab.com/cake/go-project-template/gpt"
 	"gitlab.com/cake/golibs/intercom"
+	"gitlab.com/cake/m800log"
 	"gitlab.com/cake/mgopool/v3"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 func AddMetricEndpoint(rootGroup *gin.RouterGroup) {
@@ -28,7 +30,11 @@ func nameHandler(c *gin.Context) {
 	span := ctx.GetSpan()
 	bag := ctx.GetBaggage()
 
-	mgopool.Insert(ctx, "testDB", "testCollection", sample{test})
+	err := mgopool.Insert(ctx, "testDB", "testCollection", sample{"1", test})
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		m800log.Error(ctx, "==================== error:", err.Error())
+	}
 
 	span.SetAttributes(attribute.KeyValue{Key: "baggage", Value: attribute.StringValue(bag.String())})
 	span.SetAttributes(attribute.KeyValue{Key: "name", Value: attribute.StringValue(test)})
@@ -40,5 +46,6 @@ func nameHandler(c *gin.Context) {
 }
 
 type sample struct {
+	ID   string `bson:"_id"`
 	Name string `bson:"name"`
 }

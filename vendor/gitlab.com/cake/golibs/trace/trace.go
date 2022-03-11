@@ -13,7 +13,7 @@ import (
 
 func InitTracer(componentName, localNamespace string, sampleRate float64, opts ...tracesdk.TracerProviderOption) (*tracesdk.TracerProvider, error) {
 	// Please setup with environment variable
-	exporter, err := oteljaeger.New(oteljaeger.WithCollectorEndpoint())
+	exporter, err := oteljaeger.New(oteljaeger.WithAgentEndpoint())
 	if err != nil {
 		return nil, err
 	}

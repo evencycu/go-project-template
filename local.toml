@@ -18,13 +18,8 @@ access_level = "trace"
 level = "debug"
 timestamp_format = ""
 
-[jaeger]
-enabled = true
-flush_interval = "10s"
-host = "127.0.0.1:6831"
-log_spans = false
-queue_size = 128
-sample_rate = 1
+[otel.traces]
+sampler_arg = 1
 
 [kafka]
 bootstrap_servers = "dev-hk-db62.cloud.maaii.local:9092,dev-hk-db63.cloud.maaii.local:9092,dev-hk-db64.cloud.maaii.local:9092"

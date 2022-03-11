@@ -184,7 +184,7 @@ github.com/youmark/pkcs8
 # gitlab.com/cake/goctx v1.7.6
 ## explicit
 gitlab.com/cake/goctx
-# gitlab.com/cake/golibs v0.1.2-0.20220310074150-32030d7fe906
+# gitlab.com/cake/golibs v0.2.2
 ## explicit
 gitlab.com/cake/golibs/intercom
 gitlab.com/cake/golibs/intercom/schemas/v1.0.0
@@ -196,7 +196,7 @@ gitlab.com/cake/gopkg
 # gitlab.com/cake/m800log v1.5.2
 ## explicit
 gitlab.com/cake/m800log
-# gitlab.com/cake/mgopool/v3 v3.2.13
+# gitlab.com/cake/mgopool/v3 v3.3.0
 ## explicit
 gitlab.com/cake/mgopool/v3
 gitlab.com/cake/mgopool/v3/compat

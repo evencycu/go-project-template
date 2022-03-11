@@ -6,6 +6,8 @@ CONF=local.toml
 SKAFFOLD_CONF=devops/skaffold.yaml
 SKAFFOLD_DEBUG_CONF=devops/debug/skaffold.yaml
 SKAFFOLD_TEMPLATE=devops/skaffold-template.yaml
+KUSTOMIZE_CONF=devops/kustomization.yaml
+KUSTOMIZE_TEMPLATE=devops/kustomization-template.yaml
 BASEDEPLOYMENT=devops/base/deployment.yaml
 DEVOPSTOOL=$(GOPATH)/src/gitlab.com/cake/DevOps-Tools
 
@@ -27,7 +29,7 @@ export GOPRIVATE=gitlab.com*
 SKAFFOLD_SUFFIX=george
 
 build:
-	go install -mod=mod -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
+	go install -mod=vendor -v -ldflags "-s -X $(PKGPATH).appName=$(APP) -X $(PKGPATH).gitCommit=$(REVISION) -X $(PKGPATH).gitBranch=$(BR) -X $(PKGPATH).appVersion=$(TAG) -X $(PKGPATH).buildDate=$(DATE)" $(SOURCE)
 
 run: build
 	@echo "GOPATH: $(GOPATH)"
@@ -91,9 +93,9 @@ sktemplate:
 	cp $(SKAFFOLD_TEMPLATE) $(SKAFFOLD_CONF)
 	sed -i'' -e 's/SKAFFOLD_SUFFIX/$(SKAFFOLD_SUFFIX)/g' $(SKAFFOLD_CONF)
 	- rm $(SKAFFOLD_CONF)-e
-	cp $(SKAFFOLD_KUSTOMIZE_TEMPLATE) $(SKAFFOLD_KUSTOMIZE_CONF)
-	sed -i'' -e 's/SKAFFOLD_SUFFIX/$(SKAFFOLD_SUFFIX)/g' $(SKAFFOLD_KUSTOMIZE_CONF)
-	- rm $(SKAFFOLD_KUSTOMIZE_CONF)-e
+	cp $(KUSTOMIZE_TEMPLATE) $(KUSTOMIZE_CONF)
+	sed -i'' -e 's/SKAFFOLD_SUFFIX/$(SKAFFOLD_SUFFIX)/g' $(KUSTOMIZE_CONF)
+	- rm $(KUSTOMIZE_CONF)-e
 
 skdev: sktemplate modvendor
 	skaffold dev -f $(SKAFFOLD_CONF) --trigger manual --port-forward
