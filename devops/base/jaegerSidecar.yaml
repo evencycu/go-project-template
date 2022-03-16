@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
         - name: jaeger-agent
-          image: "artifactory.maaii.com/k8s-docker-local/jaegertracing/jaeger-agent:1.18.0"
+          image: "jaegertracing/jaeger-agent:1.32.0"
           ports:
             - containerPort: 6831
               protocol: UDP

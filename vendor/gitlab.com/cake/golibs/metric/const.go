@@ -8,7 +8,7 @@ const (
 	strAssert = "find unmatched metrics type and opts when metric %s registers with type %s"
 
 	// for opentelemetry tracing key
-	KeyTraceID = "TraceID"
+	KeyTraceID = "traceID"
 
 	KeyReqSz     = "reqSz"
 	KeyResSz     = "resSz"

@@ -10,7 +10,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	gitlab.com/cake/goctx v1.7.6
-	gitlab.com/cake/golibs v0.1.2-0.20220309040556-8feae6ccf3f7
+	gitlab.com/cake/golibs v0.2.4
 	gitlab.com/cake/gopkg v1.4.8
 	gitlab.com/cake/m800log v1.5.2
 	go.mongodb.org/mongo-driver v1.8.3

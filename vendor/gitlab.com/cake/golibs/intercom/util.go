@@ -241,6 +241,7 @@ func GetContextFromGin(c *gin.Context) goctx.Context {
 	// because goctx cannot provide the interface for carrier
 	ctx.SetSpan(trace.SpanFromContext(c.Request.Context()))
 	ctx.SetBaggage(baggage.FromContext(c.Request.Context()))
+	ctx.Set(goctx.LogKeyTraceID, trace.SpanContextFromContext(c.Request.Context()).TraceID().String())
 
 	c.Set(goctx.ContextKey, ctx)
 

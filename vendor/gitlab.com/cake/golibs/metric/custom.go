@@ -111,11 +111,7 @@ func HistogramHandleFunc() func(p *GinPrometheus) {
 			handlerName = c.HandlerName()
 			resSz := float64(c.Writer.Size())
 
-			if adder, ok := p.CntVec[KeyReqCnt].WithLabelValues(status, c.Request.Method, handlerName).(prometheus.ExemplarAdder); ok && traceID.IsValid() {
-				adder.AddWithExemplar(1, traceLabel)
-			} else {
-				p.CntVec[KeyReqCnt].WithLabelValues(status, c.Request.Method, handlerName).Inc()
-			}
+			p.CntVec[KeyReqCnt].WithLabelValues(status, c.Request.Method, handlerName).Inc()
 			p.HistogramVec[KeyReqSz].WithLabelValues(status, c.Request.Method, handlerName).Observe(float64(reqSz))
 			p.HistogramVec[KeyResSz].WithLabelValues(status, c.Request.Method, handlerName).Observe(resSz)
 		})
