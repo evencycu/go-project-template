@@ -51,6 +51,12 @@ modrun:
 
 modvendor:
 	- rm go.sum
+	go build -mod=mod -v $(SOURCE)
+	go mod tidy
+	go mod vendor
+
+m1modvendor:
+	- rm go.sum
 	go build -mod=mod -tags dynamic -v $(SOURCE)
 	go mod tidy
 	go mod vendor
