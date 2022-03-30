@@ -52,7 +52,7 @@ modrun:
 modvendor:
 	- rm go.sum
 	go build -mod=mod -v $(SOURCE)
-	go mod tidy
+	go mod tidy -compat=1.17
 	go mod vendor
 
 m1modvendor:

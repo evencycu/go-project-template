@@ -52,7 +52,7 @@ type APIMount struct {
 	Driver      string `json:"Driver,omitempty" yaml:"Driver,omitempty" toml:"Driver,omitempty"`
 	Mode        string `json:"Mode,omitempty" yaml:"Mode,omitempty" toml:"Mode,omitempty"`
 	RW          bool   `json:"RW,omitempty" yaml:"RW,omitempty" toml:"RW,omitempty"`
-	Propogation string `json:"Propogation,omitempty" yaml:"Propogation,omitempty" toml:"Propogation,omitempty"`
+	Propagation string `json:"Propagation,omitempty" yaml:"Propagation,omitempty" toml:"Propagation,omitempty"`
 }
 
 // APIContainers represents each container in the list returned by
@@ -824,9 +824,9 @@ func (c *Client) StartContainerWithContext(id string, hostConfig *HostConfig, ct
 
 func (c *Client) startContainer(id string, hostConfig *HostConfig, opts doOptions) error {
 	path := "/containers/" + id + "/start"
-	if c.serverAPIVersion == nil {
-		c.checkAPIVersion()
-	}
+
+	c.checkAPIVersion()
+
 	if c.serverAPIVersion != nil && c.serverAPIVersion.LessThan(apiVersion124) {
 		opts.data = hostConfig
 		opts.forceJSON = true

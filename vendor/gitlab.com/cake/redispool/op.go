@@ -41,6 +41,7 @@ const (
 	RedisEx      = "EX"
 	RedisTTL     = "TTL"
 	RedisExists  = "EXISTS"
+	RedisMGet    = "MGET"
 
 	RedisOk     = "OK"
 	RedisQueued = "QUEUED"
@@ -134,6 +135,38 @@ func (p *Pool) TTL(key string) (value int, err error) {
 	defer c.Close()
 	value, err = redis.Int(c.Do(RedisTTL, key))
 	p.checkErrReason(err)
+	return
+}
+
+// results =  map[key] timeout seconds
+// recommend change to use mongodb, redis not suitable for too complex use case.
+func (p *Pool) TTLs(keys []string) (results map[string]int, err error) {
+	c := p.pool.Get()
+	defer c.Close()
+
+	comnands := []string{}
+	args := [][]interface{}{}
+	for i := range keys {
+		comnands = append(comnands, RedisTTL)
+		args = append(args, []interface{}{keys[i]})
+	}
+
+	resps, err := p.MultiExec(comnands, args)
+	if err != nil {
+		p.checkErrReason(err)
+		return
+	}
+	results = map[string]int{}
+	for i := range resps {
+		num, ok := resps[i].(int64)
+		if !ok {
+			err = fmt.Errorf("failed to parse response interface to int64: %+v, type: %t", resps[i], resps[i])
+			p.checkErrReason(err)
+			return
+		}
+		results[keys[i]] = int(num)
+	}
+
 	return
 }
 
@@ -253,7 +286,7 @@ func (p *Pool) HSetJSON(key, field string, value interface{}) (int, error) {
 	return res, err
 }
 
-//if the field does not exist, then reutrn redis.ErrNil
+// if the field does not exist, then reutrn redis.ErrNil
 func (p *Pool) HGetJSON(key, field string, result interface{}) error {
 	c := p.pool.Get()
 	defer c.Close()
@@ -433,7 +466,7 @@ func (p *Pool) HGetAllJSON(key string, result interface{}) error {
 	resultBytes := []byte{'{'}
 	for i, v := range vs {
 		if i%2 == 0 {
-			//key
+			// key
 			if keyValue, ok := v.([]byte); !ok {
 				return fmt.Errorf("unknown key type %+v", v)
 			} else {
@@ -444,7 +477,7 @@ func (p *Pool) HGetAllJSON(key string, result interface{}) error {
 		}
 
 		if i%2 == 1 {
-			//value
+			// value
 			bytes, ok := v.([]byte)
 			if !ok {
 				errMsg := fmt.Sprintf("v %T is not of type bytes", v)
@@ -649,4 +682,29 @@ func (w *WatchMultiExecutor) Exec(c redis.Conn) ([]interface{}, error) {
 	}
 
 	return resps, nil
+}
+
+// MGet map[key][]byte
+func (p *Pool) MGet(keys []string) (map[string]interface{}, error) {
+	c := p.pool.Get()
+	defer c.Close()
+
+	result := map[string]interface{}{}
+	args := []interface{}{}
+	for i := range keys {
+		args = append(args, keys[i])
+	}
+
+	// expect: "1", "2", "3"...
+	r, err := c.Do(RedisMGet, args...)
+	reply, err := redis.Values(r, err)
+	if err != nil {
+		p.checkErrReason(err)
+		return nil, err
+	}
+
+	for i := range reply {
+		result[keys[i]] = reply[i]
+	}
+	return result, err
 }

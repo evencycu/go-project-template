@@ -40,7 +40,7 @@ func init() {
 	}
 
 	httpClient := &http.Client{Transport: otelhttp.NewTransport(tr), Timeout: defaultTimeout}
-	intercomClient = NewIntercomClient(httpClient)
+	intercomClient = NewIntercomClientWithTransport(httpClient, tr)
 }
 
 const (
@@ -204,28 +204,45 @@ func getResponseMetricCode(resp *http.Response) (status string) {
 type IntercomClient struct {
 	httpClient *http.Client
 	userAgent  string
+	tr         *http.Transport
 }
 
 func NewIntercomClient(client *http.Client) (ic *IntercomClient) {
+	return NewIntercomClientWithTransport(client, nil)
+}
+
+func NewIntercomClientWithTransport(client *http.Client, tr *http.Transport) (ic *IntercomClient) {
 	if client != nil {
-		ic = &IntercomClient{httpClient: client, userAgent: ""}
+		ic = &IntercomClient{httpClient: client, userAgent: "", tr: tr}
 	}
 	return
 }
 
 func (ic *IntercomClient) SetHTTPClient(client *http.Client) {
+	client.Transport = otelhttp.NewTransport(client.Transport)
 	ic.httpClient = client
 }
 
 func (ic *IntercomClient) SetHTTPClientTimeout(to time.Duration) {
 	ic.httpClient.Timeout = to
-	if ic.httpClient.Transport != nil {
-		ic.httpClient.Transport.(*http.Transport).TLSHandshakeTimeout = to
+	if ic.tr != nil {
+		ic.tr.TLSHandshakeTimeout = to
+		ic.httpClient = &http.Client{Transport: otelhttp.NewTransport(tr), Timeout: to}
 	}
 }
 
 func (ic *IntercomClient) GetHTTPClient() *http.Client {
 	return ic.httpClient
+}
+
+func (ic *IntercomClient) GetHTTPTransport() *http.Transport {
+	return ic.tr
+}
+
+func (ic *IntercomClient) SetHTTPTransport(t *http.Transport) {
+	if t != nil {
+		ic.tr = t
+	}
 }
 
 func (ic *IntercomClient) M800Do(ctx goctx.Context, req *http.Request) (result *JsonResponse, err gopkg.CodeError) {

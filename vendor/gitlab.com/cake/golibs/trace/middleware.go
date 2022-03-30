@@ -38,7 +38,7 @@ func Middleware(service string, startOpts ...oteltrace.SpanStartOption) gin.Hand
 		}()
 		ctx := propagators.Extract(savedCtx, propagation.HeaderCarrier(c.Request.Header))
 
-		startOpts = append(startOpts,
+		opts := append(startOpts,
 			oteltrace.WithAttributes(semconv.NetAttributesFromHTTPRequest("tcp", c.Request)...),
 			oteltrace.WithAttributes(semconv.EndUserAttributesFromHTTPRequest(c.Request)...),
 			oteltrace.WithAttributes(semconv.HTTPServerAttributesFromHTTPRequest(service, c.FullPath(), c.Request)...),
@@ -52,7 +52,7 @@ func Middleware(service string, startOpts ...oteltrace.SpanStartOption) gin.Hand
 		}
 		spanName := fmt.Sprintf("%s %s", c.Request.Method, path)
 
-		ctx, span := tracer.Start(ctx, spanName, startOpts...)
+		ctx, span := tracer.Start(ctx, spanName, opts...)
 		defer span.End()
 
 		// pass the span through the request context

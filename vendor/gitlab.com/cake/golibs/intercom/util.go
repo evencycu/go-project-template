@@ -125,16 +125,20 @@ func GetStringFromIO(readCloser io.ReadCloser) string {
 	return string(bytes)
 }
 
+func hideReqSensitive(req string) string {
+	// TODO
+	return req
+}
+
 func dumpRequest(ctx goctx.Context, level logrus.Level, req *http.Request) {
 	if req == nil {
 		return
 	}
-	token := req.Header.Get(HeaderAuthorization)
-	req.Header.Del(HeaderAuthorization)
-	defer req.Header.Set(HeaderAuthorization, token)
+
 	requestDump, _ := httputil.DumpRequest(req, true)
 
-	log := "DumpRequest: " + string(requestDump)
+	// hide token
+	log := "DumpRequest: " + hideReqSensitive(string(requestDump))
 	if len(log) >= defaultDumpLimitLength {
 		log = log[:defaultDumpLimitLength]
 	}
@@ -146,12 +150,10 @@ func dumpRequestGivenBody(ctx goctx.Context, level logrus.Level, req *http.Reque
 	if req == nil {
 		return
 	}
-	token := req.Header.Get(HeaderAuthorization)
-	req.Header.Del(HeaderAuthorization)
-	defer req.Header.Set(HeaderAuthorization, token)
+
 	requestDump, _ := httputil.DumpRequest(req, false)
 
-	log := "DumpRequest: " + string(requestDump) + " Body: " + string(body)
+	log := "DumpRequest: " + hideReqSensitive(string(requestDump)) + " Body: " + string(body)
 	if len(log) >= defaultDumpLimitLength {
 		log = log[:defaultDumpLimitLength]
 	}
@@ -308,4 +310,26 @@ func PrintGinRouteInfo(rs []gin.RouteInfo) {
 	}
 	b, _ := json.Marshal(ris)
 	fmt.Printf("%s\n", b)
+}
+
+func SendRequest(ctx goctx.Context, method string, uri string, raw []byte) (result *JsonResponse, err gopkg.CodeError) {
+	funcName := "SendRequest"
+
+	var buffer io.Reader
+	if raw != nil {
+		buffer = bytes.NewBuffer(raw)
+	}
+	var req *http.Request
+	req, err = HTTPNewRequest(ctx, method, uri, buffer)
+	if err != nil {
+		return
+	}
+
+	_, err = M800Do(ctx, req)
+	if err != nil {
+		m800log.Errorf(ctx, "[%s] failed to do the request, err: %+v", funcName, err)
+		return
+	}
+
+	return
 }
