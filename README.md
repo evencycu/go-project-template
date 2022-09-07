@@ -90,7 +90,7 @@ reference to go.mod
     Git configuration
     Please change user.name and user.email. If you are using proxy server in office, please setup http.proxy.
     ```shell
-    $ git config --global url."ssh://git@gitlab.devops.maaii.com:2222/".insteadOf https://gitlab.com/
+    $ git config --global url."ssh://git@gitlab.devops.maaii.com:2222/cake/backend/".insteadOf https://gitlab.com/cake/
     $ git config --global user.name "John Doe"
     $ git config --global user.email johndoe@m800.com
     $ git config --global core.editor vi
